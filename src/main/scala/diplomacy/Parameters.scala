@@ -176,6 +176,9 @@ case class AddressSet(base: BigInt, mask: BigInt) extends Ordered[AddressSet]
       }
     }
   }
+  def subtract(x: Seq[AddressSet]): Seq[AddressSet] = {
+    x.foldLeft(Seq(this)){ case (t, removed) => t.flatMap(_.subtract(removed)) }
+  }
 
   // AddressSets have one natural Ordering (the containment order, if contiguous)
   def compare(x: AddressSet) = {
