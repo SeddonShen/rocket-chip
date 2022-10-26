@@ -4,8 +4,9 @@ package freechips.rocketchip.diplomacy
 
 import Chisel.{defaultCompileOptions => _, _}
 import chisel3.internal.sourceinfo.{SourceInfo, UnlocatableSourceInfo}
-import chisel3.{MultiIOModule, RawModule, Reset, withClockAndReset}
+import chisel3.{Module, MultiIOModule, RawModule, Reset, withClockAndReset}
 import chisel3.experimental.ChiselAnnotation
+import chisel3.experimental.hierarchy.IsLookupable
 import firrtl.passes.InlineAnnotation
 import freechips.rocketchip.config.Parameters
 import freechips.rocketchip.util.CompileOptions.NotStrictInferReset
@@ -80,11 +81,17 @@ abstract class LazyModule()(implicit val p: Parameters) {
   /** Return source line that defines this instance. */
   def line: String = sourceLine(info)
 
+  /** Indicating if this module is part of a harden module. */
+  val parentIsHardened:Boolean = if(parent.isDefined) parent.get.parentIsHardened else false
+
   // Accessing these names can only be done after circuit elaboration!
   /** Module name in verilog, used in GraphML. */
-  lazy val moduleName: String = module.name
+  /** When this module is part of a harden module, module name may not be the same with that in RTL.*/
+  lazy val moduleName: String = if(parentIsHardened) s"${desiredName}}" else module.name
   /** Hierarchical path of this instance, used in GraphML. */
-  lazy val pathName: String = module.pathName
+  /** When the module is part of a harden module, it will never be instantiated twice. */
+  /** Simply use the desiredName here.*/
+  lazy val pathName: String = if(parentIsHardened) parent.get.pathName + s".${desiredName}}" else module.pathName
   /** Instance name in verilog. Should only be accessed after circuit elaboration. */
   lazy val instanceName: String = pathName.split('.').last
 
@@ -249,7 +256,7 @@ object LazyModule {
   *
   * This is the actual Chisel module that is lazily-evaluated in the second phase of Diplomacy.
   */
-sealed trait LazyModuleImpLike extends RawModule {
+trait LazyModuleImpLike extends RawModule {
   /** [[LazyModule]] that contains this instance. */
   val wrapper: LazyModule
   /** IOs that will be automatically "punched" for this instance. */
@@ -275,8 +282,13 @@ sealed trait LazyModuleImpLike extends RawModule {
     // 2. return [[Dangle]]s from each module.
     val childDangles = wrapper.children.reverse.flatMap { c =>
       implicit val sourceInfo: SourceInfo = c.info
-      val mod = Module(c.module)
-      mod.dangles
+      c match {
+        case m:LazyHardenModule[LazyHardenModuleImpLike] =>
+          m.genDangles()
+        case _ =>
+          val mod = Module(c.module)
+          mod.dangles
+      }
     }
 
     // Ask each node in this [[LazyModule]] to call [[BaseNode.instantiate]].
@@ -476,7 +488,7 @@ case class HalfEdge(serial: Int, index: Int) extends Ordered[HalfEdge] {
   * @param flipped flip or not in [[AutoBundle.makeElements]]. If true this corresponds to `danglesOut`, if false it corresponds to `danglesIn`.
   * @param data    actual [[Data]] for the hardware connection.
   */
-case class Dangle(source: HalfEdge, sink: HalfEdge, flipped: Boolean, name: String, data: Data)
+case class Dangle(source: HalfEdge, sink: HalfEdge, flipped: Boolean, name: String, data: Data) extends IsLookupable
 
 /** [[AutoBundle]] will construct the [[Bundle]]s for a [[LazyModule]] in [[LazyModuleImpLike.instantiate]],
   *
