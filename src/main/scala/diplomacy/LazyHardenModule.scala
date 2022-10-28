@@ -28,7 +28,7 @@ abstract class LazyHardenModule[T <: LazyHardenModuleImpLike]()(implicit p: Para
     LazyHardenModule.getDef(className).asInstanceOf[Definition[T]]
   } else {
     val modDef = Definition(module)
-    LazyHardenModule.mapAppend(className, modDef, this)
+    LazyHardenModule.defAdd(className, modDef, this)
     modDef
   }
 
@@ -75,15 +75,21 @@ abstract class LazyHardenModule[T <: LazyHardenModuleImpLike]()(implicit p: Para
   }
 
   private def spreadNames(myPathName:String):Unit = {
-    val instantiatedWrapper = LazyHardenModule.getWrapper(className)
-    val nameTreeRoot = LazyHardenModule.genNameTreeNode(instantiatedWrapper, desiredName + ".")
+    val nameTreeRoot = if(LazyHardenModule.ntExist(className)){
+      LazyHardenModule.getNameTree(className)
+    } else {
+      val instantiatedWrapper = LazyHardenModule.getWrapper(className)
+      val res = LazyHardenModule.genNameTreeNode(instantiatedWrapper, desiredName + ".").copy(pathName = "")
+      LazyHardenModule.ntAdd(className, res)
+      res
+    }
     doSpreadNames(nameTreeRoot, this, myPathName)
   }
 }
 
 object LazyHardenModule {
   private val defMap = new mutable.HashMap[String,(Definition[LazyHardenModuleImpLike],Int, LazyModule)]()
-  private def mapAppend(name:String, definition: Definition[LazyHardenModuleImpLike], wrapper:LazyModule):Unit = {
+  private def defAdd(name:String, definition: Definition[LazyHardenModuleImpLike], wrapper:LazyModule):Unit = {
     defMap(name) = (definition, 0, wrapper)
   }
   private def elemExsist(name:String):Boolean = {
@@ -102,6 +108,20 @@ object LazyHardenModule {
     defMap(name) = (defMap(name)._1, defMap(name)._2 + 1, defMap(name)._3)
     defMap(name)._2 - 1
   }
+
+  private val nodeTreeMap = new mutable.HashMap[String, NameTreeNode]()
+  private def ntAdd(name:String, root:NameTreeNode):Unit = {
+    nodeTreeMap(name) = root
+  }
+  private def ntExist(name:String):Boolean = {
+    nodeTreeMap.contains(name)
+  }
+  private def getNameTree(name:String):NameTreeNode = {
+    require(nodeTreeMap.contains(name))
+    nodeTreeMap(name)
+  }
+
+
 
   private def genNameTreeNode(me:LazyModule, prefix:String):NameTreeNode = {
     if(me.children.isEmpty){
