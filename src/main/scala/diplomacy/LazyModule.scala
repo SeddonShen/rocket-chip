@@ -14,6 +14,10 @@ import freechips.rocketchip.util.CompileOptions.NotStrictInferReset
 import scala.collection.immutable.{ListMap, SortedMap}
 import scala.util.matching._
 
+/** Used for [[LazyHardenModule]] to record names in children nodes. When generation GraphML, these name will spread
+  * through all children nodes instead of using module information.*/
+case class NameTreeNode(children:Seq[NameTreeNode], moduleName:String, pathName:String)
+
 /** While the [[freechips.rocketchip.diplomacy]] package allows fairly abstract parameter negotiation while constructing a DAG,
   * [[LazyModule]] builds on top of the DAG annotated with the negotiated parameters and leverage's Scala's lazy evaluation property to split Chisel module generation into two phases:
   *
@@ -82,18 +86,27 @@ abstract class LazyModule()(implicit val p: Parameters) {
   def line: String = sourceLine(info)
 
   /** Indicating if this module is part of a harden module. */
-  val parentIsHardened:Boolean = if(parent.isDefined) parent.get.parentIsHardened else false
+  protected[diplomacy] val isHardenedModule:Boolean = if(parent.isDefined) parent.get.isHardenedModule else false
+  /** Indicating if names has been spread to this module. */
+  protected[diplomacy] var isNamed:Boolean = false
+  /** The module name of a hardened module, which shoule be update when name spreading. */
+  protected[diplomacy] var hardenModuleName: String = ""
+  /** The path name of a hardened module, which shoule be update when name spreading. */
+  protected[diplomacy] var hardenPathName: String = ""
+  /** The real module name of a path module. */
+  protected[diplomacy] lazy val genericModuleName: String = module.name
+  /** The real path name of a path module, relative to hardened top module. */
+  protected[diplomacy] lazy val genericPathName: String = module.pathName
 
   // Accessing these names can only be done after circuit elaboration!
   /** Module name in verilog, used in GraphML. */
+  /** For an hardened module, its module must not be accessed. Names of it should be precomputed.*/
   /** When this module is part of a harden module, module name may not be the same with that in RTL.*/
-  lazy val moduleName: String = if(parentIsHardened) s"${desiredName}}" else module.name
+  def moduleName: String = if(isHardenedModule && isNamed) hardenModuleName else genericModuleName
   /** Hierarchical path of this instance, used in GraphML. */
-  /** When the module is part of a harden module, it will never be instantiated twice. */
-  /** Simply use the desiredName here.*/
-  lazy val pathName: String = if(parentIsHardened) parent.get.pathName + s".${desiredName}}" else module.pathName
+  def pathName: String = if(isHardenedModule && isNamed) hardenPathName else genericPathName
   /** Instance name in verilog. Should only be accessed after circuit elaboration. */
-  lazy val instanceName: String = pathName.split('.').last
+  def instanceName: String = pathName.split('.').last
 
   /** [[chisel3]] hardware implementation of this [[LazyModule]].
     *

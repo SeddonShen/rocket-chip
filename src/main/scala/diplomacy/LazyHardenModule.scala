@@ -9,22 +9,26 @@ abstract class LazyHardenModule[T <: LazyHardenModuleImpLike]()(implicit p: Para
 
   lazy val moduleInstance = Instance(moduleDef)
 
-  override lazy val pathName = {
-    val prefix = if(parent.isDefined) parent.get.pathName else desiredName
+  override lazy val genericPathName = {
+    val prefix = if (parent.isDefined) parent.get.pathName + "." else ""
     val id = LazyHardenModule.getId(className)
-    val tail = if(id == 0) "moduleInstance" else s"moduleInstance_$id"
-    prefix + "." + tail
+    val tail = if (id == 0) "moduleInstance" else s"moduleInstance_$id"
+    val myPathName = prefix + tail
+    myPathName
   }
 
-  override lazy val moduleName = desiredName
+  override def instanceName:String = {
+    spreadNames(pathName)
+    pathName.split('.').last
+  }
 
-  override val parentIsHardened = true
+  override val isHardenedModule = true
 
   protected[diplomacy] lazy val moduleDef = if(LazyHardenModule.elemExsist(className)){
     LazyHardenModule.getDef(className).asInstanceOf[Definition[T]]
   } else {
     val modDef = Definition(module)
-    LazyHardenModule.mapAppend(className, modDef)
+    LazyHardenModule.mapAppend(className, modDef, this)
     modDef
   }
 
@@ -43,7 +47,7 @@ abstract class LazyHardenModule[T <: LazyHardenModuleImpLike]()(implicit p: Para
     }
   }
 
-  def genDangles():Seq[Dangle] = {
+  protected[diplomacy] def genDangles():Seq[Dangle] = {
     val myDangles:Seq[Dangle] = if(LazyHardenModule.elemExsist(className)) {
       getAllDangles(this)
     } else {
@@ -57,22 +61,56 @@ abstract class LazyHardenModule[T <: LazyHardenModuleImpLike]()(implicit p: Para
     })
     newDangles.toSeq
   }
+
+  private def doSpreadNames(ntn: NameTreeNode, mod:LazyModule, prefix:String): Unit ={
+    require(ntn.children.length == mod.children.length)
+    mod.hardenModuleName = ntn.moduleName
+    mod.hardenPathName = if(ntn.pathName == "") prefix else prefix + "." + ntn.pathName
+    mod.isNamed = true
+    if(ntn.children.nonEmpty) {
+      for((n, m) <- ntn.children.zip(mod.children)) {
+        doSpreadNames(n, m, prefix)
+      }
+    }
+  }
+
+  private def spreadNames(myPathName:String):Unit = {
+    val instantiatedWrapper = LazyHardenModule.getWrapper(className)
+    val nameTreeRoot = LazyHardenModule.genNameTreeNode(instantiatedWrapper, desiredName + ".")
+    doSpreadNames(nameTreeRoot, this, myPathName)
+  }
 }
 
 object LazyHardenModule {
-  private val defMap = new mutable.HashMap[String,(Definition[LazyHardenModuleImpLike],Int)]()
-  private def mapAppend(name:String,definition: Definition[LazyHardenModuleImpLike]):Unit = {
-    defMap(name) = (definition, 0)
+  private val defMap = new mutable.HashMap[String,(Definition[LazyHardenModuleImpLike],Int, LazyModule)]()
+  private def mapAppend(name:String, definition: Definition[LazyHardenModuleImpLike], wrapper:LazyModule):Unit = {
+    defMap(name) = (definition, 0, wrapper)
   }
   private def elemExsist(name:String):Boolean = {
     defMap.contains(name)
   }
   private def getDef(name:String):Definition[LazyHardenModuleImpLike] = {
+    require(defMap.contains(name))
     defMap(name)._1
   }
+  private def getWrapper(name:String):LazyModule = {
+    require(defMap.contains(name))
+    defMap(name)._3
+  }
   private def getId(name:String):Int = {
-    defMap(name) = (defMap(name)._1, defMap(name)._2 + 1)
+    require(defMap.contains(name))
+    defMap(name) = (defMap(name)._1, defMap(name)._2 + 1, defMap(name)._3)
     defMap(name)._2 - 1
+  }
+
+  private def genNameTreeNode(me:LazyModule, prefix:String):NameTreeNode = {
+    if(me.children.isEmpty){
+      val pn = if(prefix == "") me.pathName else me.pathName.stripPrefix(prefix)
+      NameTreeNode(Seq(), me.moduleName, pn)
+    } else {
+      val childrenNodes = me.children.map(genNameTreeNode(_, prefix))
+      NameTreeNode(childrenNodes, me.moduleName, me.pathName)
+    }
   }
 }
 
