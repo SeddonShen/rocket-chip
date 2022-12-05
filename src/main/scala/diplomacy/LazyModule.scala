@@ -127,7 +127,7 @@ abstract class LazyModule()(implicit val p: Parameters) {
     *  The default heuristic is to inline any parents whose children have been inlined
     *  and whose nodes all produce identity circuits.
     */
-  def shouldBeInlined: Boolean = nodes.forall(_.circuitIdentity) && children.forall(_.shouldBeInlined)
+  def shouldBeInlined: Boolean = nodes.nonEmpty && children.nonEmpty && nodes.forall(_.circuitIdentity) && children.forall(_.shouldBeInlined)
 
   /** GraphML representation for this instance.
     *
