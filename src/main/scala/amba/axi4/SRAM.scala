@@ -53,7 +53,7 @@ class AXI4RAM(
   class Impl extends LazyModuleImp(this) {
     val (in, edgeIn) = node.in(0)
     val laneDataBits = 8
-    val mem = difftest.common.DifftestRAM(
+    val mem = difftest.common.DifftestMem(
       size = BigInt(1) << mask.filter(b=>b).size,
       lanes = beatBytes,
       bits = laneDataBits,

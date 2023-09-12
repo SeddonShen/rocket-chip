@@ -9,4 +9,5 @@
 	url = https://github.com/chipsalliance/cde.git
 [submodule "difftest"]
 	path = difftest
-	url = git@github.com:poemonsense/DiffTest.git
+	url = https://github.com/OpenXiangShan/difftest.git
+

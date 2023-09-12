@@ -12,7 +12,6 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.subsystem._
 import freechips.rocketchip.util.AsyncResetReg
 import org.chipsalliance.cde.config.{Config, Parameters}
-import xfuzz.CoverPoint
 
 class ExampleFuzzSystem(implicit p: Parameters) extends RocketSubsystem
   with CanHaveMasterAXI4MemPort
@@ -97,7 +96,7 @@ object FuzzMain {
       ChiselGeneratorAnnotation(() => {
         freechips.rocketchip.diplomacy.DisableMonitors(p => new SimTop()(p))(new FuzzConfig)
       })
-    ) ++ CoverPoint.getTransforms(args))
+    ))
     DifftestModule.finish("rocket-chip")
   }
 }

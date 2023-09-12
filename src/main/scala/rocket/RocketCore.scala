@@ -1081,7 +1081,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     }
   }
   if (true) {
-    val difftest = DifftestModule(new DiffInstrCommit, delay = 1)
+    val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
     difftest.clock := clock
     difftest.coreid := 0.U
     difftest.index := 0.U
