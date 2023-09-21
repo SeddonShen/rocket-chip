@@ -290,7 +290,7 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
             (true.B, maxDevs(i))
           },
           RegWriteFn { (valid, data) =>
-            assert(completerDev === data.extract(log2Ceil(nDevices+1)-1, 0), 
+            assert(Mux(valid, completerDev === data.extract(log2Ceil(nDevices+1)-1, 0), true.B),
                    "completerDev should be consistent for all harts")
             completerDev := data.extract(log2Ceil(nDevices+1)-1, 0)
             completer(i) := valid && enableVec0(i)(completerDev)
