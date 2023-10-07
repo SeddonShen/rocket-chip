@@ -345,14 +345,15 @@ class TLEdgeOut(
     require (manager.anySupportAcquireB, s"TileLink: No managers visible from this edge support Acquires, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsAcquireBFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.AcquireBlock
     a.param   := growPermissions
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
-    a.data    := 0.U
+    a.data    := DontCare
     a.corrupt := false.B
     (legal, a)
   }
@@ -366,8 +367,10 @@ class TLEdgeOut(
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
-    a.data    := 0.U
+    a.data    := DontCare
     a.corrupt := false.B
     a.user    := DontCare
     a.echo    := DontCare
@@ -378,13 +381,14 @@ class TLEdgeOut(
     require (manager.anySupportAcquireB, s"TileLink: No managers visible from this edge support Acquires, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsAcquireBFast(toAddress, lgSize)
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.Release
     c.param   := shrinkPermissions
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
-    c.data    := 0.U
+    c.user    := DontCare
+    c.echo    := DontCare
+    c.data    := DontCare
     c.corrupt := false.B
     (legal, c)
   }
@@ -393,12 +397,13 @@ class TLEdgeOut(
     require (manager.anySupportAcquireB, s"TileLink: No managers visible from this edge support Acquires, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsAcquireBFast(toAddress, lgSize)
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.ReleaseData
     c.param   := shrinkPermissions
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
+    c.user    := DontCare
+    c.echo    := DontCare
     c.data    := data
     c.corrupt := corrupt
     (legal, c)
@@ -412,13 +417,14 @@ class TLEdgeOut(
 
   def ProbeAck(fromSource: UInt, toAddress: UInt, lgSize: UInt, reportPermissions: UInt): TLBundleC = {
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.ProbeAck
     c.param   := reportPermissions
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
-    c.data    := 0.U
+    c.user    := DontCare
+    c.echo    := DontCare
+    c.data    := DontCare
     c.corrupt := false.B
     c
   }
@@ -428,12 +434,13 @@ class TLEdgeOut(
 
   def ProbeAck(fromSource: UInt, toAddress: UInt, lgSize: UInt, reportPermissions: UInt, data: UInt, corrupt: Bool): TLBundleC = {
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.ProbeAckData
     c.param   := reportPermissions
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
+    c.user    := DontCare
+    c.echo    := DontCare
     c.data    := data
     c.corrupt := corrupt
     c
@@ -454,14 +461,15 @@ class TLEdgeOut(
     require (manager.anySupportGet, s"TileLink: No managers visible from this edge support Gets, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsGetFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.Get
     a.param   := 0.U
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
-    a.data    := 0.U
+    a.data    := DontCare
     a.corrupt := false.B
     (legal, a)
   }
@@ -473,12 +481,13 @@ class TLEdgeOut(
     require (manager.anySupportPutFull, s"TileLink: No managers visible from this edge support Puts, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsPutFullFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.PutFullData
     a.param   := 0.U
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
     a.data    := data
     a.corrupt := corrupt
@@ -492,12 +501,13 @@ class TLEdgeOut(
     require (manager.anySupportPutPartial, s"TileLink: No managers visible from this edge support masked Puts, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsPutPartialFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.PutPartialData
     a.param   := 0.U
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask
     a.data    := data
     a.corrupt := corrupt
@@ -508,12 +518,13 @@ class TLEdgeOut(
     require (manager.anySupportArithmetic, s"TileLink: No managers visible from this edge support arithmetic AMOs, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsArithmeticFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.ArithmeticData
     a.param   := atomic
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
     a.data    := data
     a.corrupt := corrupt
@@ -524,12 +535,13 @@ class TLEdgeOut(
     require (manager.anySupportLogical, s"TileLink: No managers visible from this edge support logical AMOs, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsLogicalFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.LogicalData
     a.param   := atomic
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
     a.data    := data
     a.corrupt := corrupt
@@ -540,14 +552,15 @@ class TLEdgeOut(
     require (manager.anySupportHint, s"TileLink: No managers visible from this edge support Hints, but one of these clients would try to request one: ${client.clients}")
     val legal = manager.supportsHintFast(toAddress, lgSize)
     val a = Wire(new TLBundleA(bundle))
-    a :#= DontCare
     a.opcode  := TLMessages.Hint
     a.param   := param
     a.size    := lgSize
     a.source  := fromSource
     a.address := toAddress
+    a.user    := DontCare
+    a.echo    := DontCare
     a.mask    := mask(toAddress, lgSize)
-    a.data    := 0.U
+    a.data    := DontCare
     a.corrupt := false.B
     (legal, a)
   }
@@ -555,13 +568,14 @@ class TLEdgeOut(
   def AccessAck(b: TLBundleB): TLBundleC = AccessAck(b.source, address(b), b.size)
   def AccessAck(fromSource: UInt, toAddress: UInt, lgSize: UInt) = {
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.AccessAck
     c.param   := 0.U
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
-    c.data    := 0.U
+    c.user    := DontCare
+    c.echo    := DontCare
+    c.data    := DontCare
     c.corrupt := false.B
     c
   }
@@ -571,12 +585,13 @@ class TLEdgeOut(
   def AccessAck(fromSource: UInt, toAddress: UInt, lgSize: UInt, data: UInt): TLBundleC = AccessAck(fromSource, toAddress, lgSize, data, false.B)
   def AccessAck(fromSource: UInt, toAddress: UInt, lgSize: UInt, data: UInt, corrupt: Bool) = {
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.AccessAckData
     c.param   := 0.U
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
+    c.user    := DontCare
+    c.echo    := DontCare
     c.data    := data
     c.corrupt := corrupt
     c
@@ -585,13 +600,14 @@ class TLEdgeOut(
   def HintAck(b: TLBundleB): TLBundleC = HintAck(b.source, address(b), b.size)
   def HintAck(fromSource: UInt, toAddress: UInt, lgSize: UInt) = {
     val c = Wire(new TLBundleC(bundle))
-    c :#= DontCare
     c.opcode  := TLMessages.HintAck
     c.param   := 0.U
     c.size    := lgSize
     c.source  := fromSource
     c.address := toAddress
-    c.data    := 0.U
+    c.user    := DontCare
+    c.echo    := DontCare
+    c.data    := DontCare
     c.corrupt := false.B
     c
   }
@@ -622,7 +638,7 @@ class TLEdgeIn(
     b.source  := toSource
     b.address := fromAddress
     b.mask    := mask(fromAddress, lgSize)
-    b.data    := 0.U
+    b.data    := DontCare
     b.corrupt := false.B
     (legal, b)
   }
@@ -636,7 +652,9 @@ class TLEdgeIn(
     d.source  := toSource
     d.sink    := fromSink
     d.denied  := denied
-    d.data    := 0.U
+    d.user    := DontCare
+    d.echo    := DontCare
+    d.data    := DontCare
     d.corrupt := false.B
     d.echo    := DontCare
     d.user    := DontCare
@@ -652,6 +670,8 @@ class TLEdgeIn(
     d.source  := toSource
     d.sink    := fromSink
     d.denied  := denied
+    d.user    := DontCare
+    d.echo    := DontCare
     d.data    := data
     d.corrupt := corrupt
     d
@@ -666,7 +686,9 @@ class TLEdgeIn(
     d.source  := toSource
     d.sink    := 0.U
     d.denied  := denied
-    d.data    := 0.U
+    d.user    := DontCare
+    d.echo    := DontCare
+    d.data    := DontCare
     d.corrupt := false.B
     d.echo    := DontCare
     d.user    := DontCare
@@ -684,7 +706,7 @@ class TLEdgeIn(
     b.source  := toSource
     b.address := fromAddress
     b.mask    := mask(fromAddress, lgSize)
-    b.data    := 0.U
+    b.data    := DontCare
     b.corrupt := false.B
     (legal, b)
   }
@@ -765,7 +787,7 @@ class TLEdgeIn(
     b.source  := toSource
     b.address := fromAddress
     b.mask    := mask(fromAddress, lgSize)
-    b.data    := 0.U
+    b.data    := DontCare
     b.corrupt := false.B
     (legal, b)
   }
@@ -781,7 +803,9 @@ class TLEdgeIn(
     d.source  := toSource
     d.sink    := 0.U
     d.denied  := denied
-    d.data    := 0.U
+    d.user    := DontCare
+    d.echo    := DontCare
+    d.data    := DontCare
     d.corrupt := false.B
     d
   }
@@ -797,6 +821,8 @@ class TLEdgeIn(
     d.source  := toSource
     d.sink    := 0.U
     d.denied  := denied
+    d.user    := DontCare
+    d.echo    := DontCare
     d.data    := data
     d.corrupt := corrupt
     d
@@ -813,7 +839,9 @@ class TLEdgeIn(
     d.source  := toSource
     d.sink    := 0.U
     d.denied  := denied
-    d.data    := 0.U
+    d.user    := DontCare
+    d.echo    := DontCare
+    d.data    := DontCare
     d.corrupt := false.B
     d
   }
