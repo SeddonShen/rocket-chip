@@ -2,84 +2,209 @@ import mill._
 import mill.scalalib._
 import mill.scalalib.publish._
 import coursier.maven.MavenRepository
-import $file.hardfloat.build
+import $file.hardfloat.common
 import $file.cde.common
 import $file.common
 import $file.difftest.build
 
-object cdeRocket extends cde.common.CDEModule with PublishModule {
+object v {
+  val scala = "2.13.10"
+  // the first version in this Map is the mainly supported version which will be used to run tests
+  val chiselCrossVersions = Map(
+    "3.6.0" -> (ivy"edu.berkeley.cs::chisel3:3.6.0", ivy"edu.berkeley.cs:::chisel3-plugin:3.6.0"),
+    "5.0.0" -> (ivy"org.chipsalliance::chisel:5.0.0", ivy"org.chipsalliance:::chisel-plugin:5.0.0"),
+  )
+  val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
+  val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
+  val scalaReflect = ivy"org.scala-lang:scala-reflect:${scala}"
+}
+
+object macros extends Macros
+
+trait Macros
+  extends millbuild.common.MacrosModule
+    with RocketChipPublishModule
+    with SbtModule {
+
+  def scalaVersion: T[String] = T(v.scala)
+
+  def scalaReflectIvy = v.scalaReflect
+}
+
+object hardfloat extends mill.define.Cross[Hardfloat](v.chiselCrossVersions.keys.toSeq)
+
+trait Hardfloat
+  extends millbuild.hardfloat.common.HardfloatModule
+    with RocketChipPublishModule
+    with Cross.Module[String] {
+
+  def scalaVersion: T[String] = T(v.scala)
+
+  override def millSourcePath = os.pwd / "hardfloat" / "hardfloat"
+
+  def chiselModule = None
+
+  def chiselPluginJar = None
+
+  def chiselIvy = Some(v.chiselCrossVersions(crossValue)._1)
+
+  def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
+}
+
+object cde extends CDE
+
+trait CDE
+  extends millbuild.cde.common.CDEModule
+    with RocketChipPublishModule
+    with ScalaModule {
+
+  def scalaVersion: T[String] = T(v.scala)
+
   override def millSourcePath = os.pwd / "cde" / "cde"
-
-  override def scalaVersion = T {
-    rocketchip.scalaVersion()
-  }
-
-  override def pomSettings = T {
-    rocketchip.pomSettings()
-  }
-
-  override def publishVersion = T {
-    rocketchip.publishVersion()
-  }
 }
 
-object hardfloatRocket extends hardfloat.build.hardfloat {
-  override def millSourcePath = os.pwd / "hardfloat"
+trait Difftest
+  extends millbuild.difftest.build.CommonDiffTest
+    with RocketChipPublishModule
+    with Cross.Module[String] {
 
-  override def scalaVersion = T {
-    rocketchip.scalaVersion()
-  }
+  override def scalaVersion: T[String] = T(v.scala)
 
-  // use same chisel version with RocketChip
-  def chisel3IvyDeps = if(chisel3Module.isEmpty) Agg(
-    common.getVersion("chisel3")
-  ) else Agg.empty[Dep]
-}
-
-object difftestDep extends difftest.build.CommonDiffTest with PublishModule {
   override def millSourcePath = os.pwd / "difftest"
 
-  override def pomSettings = T {
-    rocketchip.pomSettings()
+  override def ivyDeps = Agg(v.chiselCrossVersions(crossValue)._1)
+
+  override def scalacPluginIvyDeps = Agg(v.chiselCrossVersions(crossValue)._2)
+
+  override def scalacOptions = T(Seq[String]())
+}
+
+object difftest extends mill.define.Cross[Difftest](v.chiselCrossVersions.keys.toSeq)
+
+object rocketchip extends Cross[RocketChip](v.chiselCrossVersions.keys.toSeq)
+
+trait RocketChip
+  extends millbuild.common.RocketChipModule
+    with RocketChipPublishModule
+    with SbtModule
+    with Cross.Module[String] {
+  def scalaVersion: T[String] = T(v.scala)
+
+  override def millSourcePath = super.millSourcePath / os.up
+
+  def chiselModule = None
+
+  def chiselPluginJar = None
+
+  def chiselIvy = Some(v.chiselCrossVersions(crossValue)._1)
+
+  def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
+
+  def macrosModule = macros
+
+  def hardfloatModule = hardfloat(crossValue)
+
+  def cdeModule = cde
+
+  def difftestModule = difftest(crossValue)
+
+  def mainargsIvy = v.mainargs
+
+  def json4sJacksonIvy = v.json4sJackson
+}
+
+trait RocketChipPublishModule
+  extends PublishModule {
+  def pomSettings = PomSettings(
+    description = artifactName(),
+    organization = "org.chipsalliance",
+    url = "http://github.com/chipsalliance/rocket-chip",
+    licenses = Seq(License.`Apache-2.0`),
+    versionControl = VersionControl.github("chipsalliance", "rocket-chip"),
+    developers = Seq(
+      Developer("aswaterman", "Andrew Waterman", "https://aspire.eecs.berkeley.edu/author/waterman/")
+    )
+  )
+
+  override def publishVersion: T[String] = T("1.6-SNAPSHOT")
+}
+
+
+// Tests
+trait Emulator extends Cross.Module2[String, String] {
+  val top: String = crossValue
+  val config: String = crossValue2
+
+  object generator extends Module {
+    def elaborate = T {
+      os.proc(
+        mill.util.Jvm.javaExe,
+        "-jar",
+        rocketchip(v.chiselCrossVersions.keys.head).assembly().path,
+        "--dir", T.dest.toString,
+        "--top", top,
+        config.split('_').flatMap(c => Seq("--config", c)),
+      ).call()
+      PathRef(T.dest)
+    }
+
+    def chiselAnno = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+    }
+
+    def chirrtl = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+    }
   }
 
-  override def publishVersion = T {
-    rocketchip.publishVersion()
+  object mfccompiler extends Module {
+    def compile = T {
+      os.proc("firtool",
+        generator.chirrtl().path,
+        s"--annotation-file=${generator.chiselAnno().path}",
+        "-disable-infer-rw",
+        "--disable-annotation-unknown",
+        "-dedup",
+        "-O=debug",
+        "--split-verilog",
+        "--preserve-values=named",
+        "--output-annotation-file=mfc.anno.json",
+        s"-o=${T.dest}"
+      ).call(T.dest)
+      PathRef(T.dest)
+    }
+
+    def rtls = T {
+      os.read(compile().path / "filelist.f").split("\n").map(str =>
+        try {
+          os.Path(str)
+        } catch {
+          case e: IllegalArgumentException if e.getMessage.contains("is not an absolute path") =>
+            compile().path / str.stripPrefix("./")
+        }
+      ).filter(p => p.ext == "v" || p.ext == "sv").map(PathRef(_)).toSeq
+    }
   }
 }
 
-object rocketchip extends common.CommonRocketChip {
-  m =>
-  override def scalaVersion: T[String] = T {
-    "2.13.10"
-  }
-  override def ammoniteVersion: T[String] = T {
-    "2.4.0"
-  }
-
-  def hardfloatModule = hardfloatRocket
-
-  def cdeModule = cdeRocket
-
-  def difftestModule = difftestDep
-}
-
-def envByNameOrRiscv(name: String): String = {
-  sys.env.get(name) match {
-    case Some(value) => value
-    case None => sys.env("RISCV") // if not found, throws NoSuchElementException exception
-  }
-}
-
-object emulator extends mill.Cross[Emulator](
+/** object to elaborate verilated emulators. */
+object emulator extends Cross[Emulator](
+  // RocketSuiteA
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultConfig"),
+  // RocketSuiteB
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultBufferlessConfig"),
-  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultRV32Config"),
+  // RocketSuiteC
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.TinyConfig"),
-  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultFP16Config"),
-  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.BitManipCryptoConfig"),
-  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.BitManipCrypto32Config"),
-  // Misc
+  // Unittest
+  ("freechips.rocketchip.unittest.TestHarness", "freechips.rocketchip.unittest.AMBAUnitTestConfig"),
+  ("freechips.rocketchip.unittest.TestHarness", "freechips.rocketchip.unittest.TLSimpleUnitTestConfig"),
+  ("freechips.rocketchip.unittest.TestHarness", "freechips.rocketchip.unittest.TLWidthUnitTestConfig"),
+  // DTM
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.WithJtagDTMSystem_freechips.rocketchip.system.WithDebugSBASystem_freechips.rocketchip.system.DefaultConfig"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.WithJtagDTMSystem_freechips.rocketchip.system.WithDebugSBASystem_freechips.rocketchip.system.DefaultRV32Config"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.WithJtagDTMSystem_freechips.rocketchip.system.DefaultConfig"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.WithJtagDTMSystem_freechips.rocketchip.system.DefaultRV32Config"),
+  // Miscellaneous
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultSmallConfig"),
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DualBankConfig"),
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DualChannelConfig"),
@@ -93,133 +218,10 @@ object emulator extends mill.Cross[Emulator](
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.MemPortOnlyConfig"),
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.MMIOPortOnlyConfig"),
   ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.CloneTileConfig"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.HypervisorConfig"),
+  //
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultRV32Config"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.DefaultFP16Config"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.BitManipCryptoConfig"),
+  ("freechips.rocketchip.system.TestHarness", "freechips.rocketchip.system.BitManipCrypto32Config"),
 )
-class Emulator(top: String, config: String) extends ScalaModule {
-  override def moduleDeps = Seq(rocketchip)
-
-  override def scalaVersion: T[String] = T {
-    "2.13.10"
-  }
-
-  def spikeRoot = T { envByNameOrRiscv("SPIKE_ROOT") }
-
-  def generator = T {
-    // class path for `moduleDeps` is only a directory, not a jar, which breaks the cache.
-    // so we need to manually add the class files of `moduleDeps` here.
-    upstreamCompileOutput()
-    mill.modules.Jvm.runLocal(
-      "freechips.rocketchip.system.Generator",
-      runClasspath().map(_.path),
-      Seq(
-        "-td", T.dest.toString,
-        "-T", top,
-        "-C", config,
-      ),
-    )
-    PathRef(T.dest)
-  }
-
-  def firrtl = T {
-    val input = generator().path / (config + ".fir")
-    val output = T.dest / (top + "-" + config + ".v")
-    mill.modules.Jvm.runLocal(
-      "firrtl.stage.FirrtlMain",
-      runClasspath().map(_.path),
-      Seq(
-        "-i", input.toString,
-        "-o", output.toString,
-      ),
-    )
-    PathRef(output)
-  }
-
-  object verilator extends Module {
-    def csrcDir = T {
-      PathRef(os.pwd / "src" / "main" / "resources" / "csrc")
-    }
-    def vsrcDir = T {
-      PathRef(os.pwd / "src" / "main" / "resources" / "vsrc")
-    }
-
-    def allCSourceFiles = T {
-      Seq(
-        "SimDTM.cc",
-        "SimJTAG.cc",
-        "debug_rob.cc",
-        "emulator.cc",
-        "remote_bitbang.cc",
-        ).map(c => PathRef(csrcDir().path / c))
-    }
-
-    def CMakeListsString = T {
-      // format: off
-      s"""cmake_minimum_required(VERSION 3.20)
-         |project(emulator)
-         |include_directories(${csrcDir().path})
-         |# plusarg is here
-         |include_directories(${generator().path})
-         |link_directories(${spikeRoot() + "/lib"})
-         |include_directories(${spikeRoot() + "/include"})
-         |
-         |set(CMAKE_BUILD_TYPE Release)
-         |set(CMAKE_CXX_STANDARD 17)
-         |set(CMAKE_C_COMPILER "clang")
-         |set(CMAKE_CXX_COMPILER "clang++")
-         |set(CMAKE_CXX_FLAGS
-         |"$${CMAKE_CXX_FLAGS} -DVERILATOR -DTEST_HARNESS=VTestHarness -include VTestHarness.h -include verilator.h -include ${generator().path / config + ".plusArgs"}")
-         |set(THREADS_PREFER_PTHREAD_FLAG ON)
-         |
-         |find_package(verilator)
-         |find_package(Threads)
-         |
-         |add_executable(emulator
-         |${allCSourceFiles().map(_.path).mkString("\n")}
-         |)
-         |
-         |target_link_libraries(emulator PRIVATE $${CMAKE_THREAD_LIBS_INIT})
-         |target_link_libraries(emulator PRIVATE fesvr)
-         |verilate(emulator
-         |  SOURCES
-         |${firrtl().path}
-         |  TOP_MODULE TestHarness
-         |  PREFIX VTestHarness
-         |  VERILATOR_ARGS ${verilatorArgs().mkString(" ")}
-         |)
-         |""".stripMargin
-      // format: on
-    }
-
-    def verilatorArgs = T.input {
-      Seq(
-        // format: off
-        "-Wno-UNOPTTHREADS", "-Wno-STMTDLY", "-Wno-LATCH", "-Wno-WIDTH",
-        "--x-assign unique",
-        """+define+PRINTF_COND=\$c\(\"verbose\",\"&&\",\"done_reset\"\)""",
-        """+define+STOP_COND=\$c\(\"done_reset\"\)""",
-        "+define+RANDOMIZE_GARBAGE_ASSIGN",
-        "--output-split 20000",
-        "--output-split-cfuncs 20000",
-        "--max-num-width 1048576",
-        s"-I${vsrcDir().path}",
-        // format: on
-      )
-    }
-
-    def cmakefileLists = T.persistent {
-      val path = T.dest / "CMakeLists.txt"
-      os.write.over(path, CMakeListsString())
-      PathRef(T.dest)
-    }
-
-    def elf = T.persistent {
-      mill.modules.Jvm.runSubprocess(Seq("cmake", "-G", "Ninja", "-S", cmakefileLists().path, "-B", T.dest.toString).map(_.toString), Map[String, String](), T.dest)
-      mill.modules.Jvm.runSubprocess(Seq("ninja", "-C", T.dest).map(_.toString), Map[String, String](), T.dest)
-      PathRef(T.dest / "emulator")
-    }
-  }
-
-  def elf = T {
-    verilator.elf()
-  }
-}
-

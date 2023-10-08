@@ -2,8 +2,8 @@
 
 package freechips.rocketchip.tile
 
-import Chisel._
-
+import chisel3._
+import chisel3.util.isPow2
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.util._
@@ -25,7 +25,6 @@ trait CoreParams {
   val useBitManip: Boolean
   val useBitManipCrypto: Boolean
   val useVector: Boolean = false
-  val useSCIE: Boolean
   val useCryptoNIST: Boolean
   val useCryptoSM: Boolean
   val useRVE: Boolean
@@ -89,7 +88,6 @@ trait HasCoreParameters extends HasTileParameters {
   val usingBitManip = coreParams.useBitManip
   val usingBitManipCrypto = coreParams.hasBitManipCrypto
   val usingVector = coreParams.useVector
-  val usingSCIE = coreParams.useSCIE
   val usingCryptoNIST = coreParams.useCryptoNIST
   val usingCryptoSM = coreParams.useCryptoSM
   val usingNMI = coreParams.useNMI
@@ -161,19 +159,19 @@ class TraceBundle(implicit val p: Parameters) extends Bundle with HasCoreParamet
 trait HasCoreIO extends HasTileParameters {
   implicit val p: Parameters
   def nTotalRoCCCSRs: Int
-  val io = new CoreBundle()(p) {
-    val hartid = UInt(hartIdLen.W).asInput
-    val reset_vector = UInt(resetVectorLen.W).asInput
-    val interrupts = new CoreInterrupts().asInput
+  val io = IO(new CoreBundle()(p) {
+    val hartid = Input(UInt(hartIdLen.W))
+    val reset_vector = Input(UInt(resetVectorLen.W))
+    val interrupts = Input(new CoreInterrupts())
     val imem  = new FrontendIO
     val dmem = new HellaCacheIO
-    val ptw = new DatapathPTWIO().flip
-    val fpu = new FPUCoreIO().flip
-    val rocc = new RoCCCoreIO(nTotalRoCCCSRs).flip
+    val ptw = Flipped(new DatapathPTWIO())
+    val fpu = Flipped(new FPUCoreIO())
+    val rocc = Flipped(new RoCCCoreIO(nTotalRoCCCSRs))
     val trace = Output(new TraceBundle)
-    val bpwatch = Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth)).asOutput
-    val cease = Bool().asOutput
-    val wfi = Bool().asOutput
-    val traceStall = Bool().asInput
-  }
+    val bpwatch = Output(Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth)))
+    val cease = Output(Bool())
+    val wfi = Output(Bool())
+    val traceStall = Input(Bool())
+  })
 }

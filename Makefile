@@ -22,7 +22,7 @@ $(BOOTROM_IMG): $(BOOTROM_SRC)
 
 SCALA_FILE = $(shell find ./src/main/scala -name '*.scala')
 $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
-	mill -i rocketchip.runMain $(FUZZ_TOP) $(MILL_ARGS)
+	mill -i rocketchip[3.6.0].runMain $(FUZZ_TOP) $(MILL_ARGS)
 	@cp src/main/resources/vsrc/EICG_wrapper.v $(BUILD_DIR)
 	@sed -i 's/UNOPTFLAT/LATCH/g' $(BUILD_DIR)/EICG_wrapper.v
 
@@ -31,8 +31,24 @@ sim-verilog: $(TOP_V)
 emu: sim-verilog
 	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0
 
-clean:
+clean-emu:
 	rm -rf $(BUILD_DIR)
 
 idea:
 	mill -i mill.scalalib.GenIdea/idea
+
+# Below is the original rocket-chip Makefile
+base_dir=$(abspath ./)
+
+CHISEL_VERSION=3.6.0
+MODEL ?= TestHarness
+PROJECT ?= freechips.rocketchip.system
+CFG_PROJECT ?= $(PROJECT)
+CONFIG ?= $(CFG_PROJECT).DefaultConfig
+MILL ?= mill
+
+verilog:
+	cd $(base_dir) && $(MILL) -i emulator[freechips.rocketchip.system.TestHarness,$(CONFIG)].mfccompiler.compile
+
+clean:
+	rm -rf out/
