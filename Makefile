@@ -7,9 +7,6 @@ TOP_V     = $(BUILD_DIR)/SimTop.v
 MILL_ARGS = --target-dir $(BUILD_DIR) \
             --full-stacktrace
 
-# Number of CPU cores
-NUM_CORES ?= 1
-
 # Coverage support
 ifneq ($(FIRRTL_COVER),)
 MILL_ARGS += COVER=$(FIRRTL_COVER)
