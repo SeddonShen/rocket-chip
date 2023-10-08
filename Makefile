@@ -1,4 +1,4 @@
-CHISEL_VERSION = 3.6.0
+CHISEL_VERSION = 6.0.0-M3
 
 FUZZ_TOP  = freechips.rocketchip.system.FuzzMain
 BUILD_DIR = $(abspath ./build)
@@ -29,6 +29,7 @@ $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
 	@sed -i 's/UNOPTFLAT/LATCH/g' $(BUILD_DIR)/EICG_wrapper.v
 
 sim-verilog: $(TOP_V)
+	cd $(BUILD_DIR) && bash ../scripts/extract_files.sh $(TOP_V)
 
 emu: sim-verilog
 	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0

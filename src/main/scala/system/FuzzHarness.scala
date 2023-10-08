@@ -2,10 +2,10 @@ package freechips.rocketchip.system
 
 
 import chisel3._
-import chisel3.stage.{ChiselCli, ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.stage.ChiselGeneratorAnnotation
+import circt.stage._
 import difftest.{DifftestModule, LogCtrlIO, PerfInfoIO, UARTIO}
-import firrtl.options.Shell
-import firrtl.stage.FirrtlCli
+import firrtl.options.TargetDirAnnotation
 import freechips.rocketchip.devices.debug.{Debug, DebugModuleKey}
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
@@ -46,12 +46,8 @@ class SimTop(implicit p: Parameters) extends Module {
   io := DontCare
   ldut.module.meip.foreach(_.foreach(_ := false.B))
   ldut.module.seip.foreach(_.foreach(_ := false.B))
-}
 
-class FuzzStage extends ChiselStage {
-  override val shell: Shell = new Shell("rocket-chip")
-    with ChiselCli
-    with FirrtlCli
+  DifftestModule.finish("rocket-chip")
 }
 
 class FuzzConfig extends Config(
@@ -92,11 +88,12 @@ class FuzzConfig extends Config(
 
 object FuzzMain {
   def main(args: Array[String]): Unit = {
-    (new FuzzStage).execute(args, Seq(
-      ChiselGeneratorAnnotation(() => {
-        freechips.rocketchip.diplomacy.DisableMonitors(p => new SimTop()(p))(new FuzzConfig)
-      })
-    ))
-    DifftestModule.finish("rocket-chip")
+    val generator = Seq(ChiselGeneratorAnnotation(() => {
+      freechips.rocketchip.diplomacy.DisableMonitors(p => new SimTop()(p))(new FuzzConfig)
+    }))
+    (new ChiselStage).execute(args, generator
+      :+ CIRCTTargetAnnotation(CIRCTTarget.Verilog)
+      :+ FirtoolOption("--disable-annotation-unknown")
+    )
   }
 }
