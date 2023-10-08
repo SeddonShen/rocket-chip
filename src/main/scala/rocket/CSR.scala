@@ -1612,7 +1612,6 @@ class CSRFile(
 
   if (true) {
     val difftest = DifftestModule(new DiffArchEvent, delay = 1)
-    difftest.clock         := clock
     difftest.coreid        := 0.U
     difftest.valid         := exception
     difftest.interrupt     := Mux(exception && cause(xLen-1), cause, 0.U)
@@ -1625,7 +1624,6 @@ class CSRFile(
     val cycleCnt = RegInit(0.U(64.W))
     cycleCnt := cycleCnt + 1.U
     val difftest = DifftestModule(new DiffTrapEvent)
-    difftest.clock    := clock
     difftest.coreid   := 0.U
     difftest.hasTrap  := false.B
     difftest.code     := 0.U
@@ -1637,7 +1635,6 @@ class CSRFile(
 
   if (true) {
     val difftest = DifftestModule(new DiffCSRState)
-    difftest.clock := clock
     difftest.coreid := 0.U
     difftest.priviledgeMode := Cat(reg_debug, reg_mstatus.prv)
     difftest.mstatus := read_mstatus

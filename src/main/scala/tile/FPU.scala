@@ -1021,7 +1021,6 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
 
   if (true) {
     val difftest = DifftestModule(new DiffArchFpRegState)
-    difftest.clock  := clock
     difftest.coreid := 0.U
     difftest.value  := (0 until 32).map(i => ieee(regfile(i)))
     // Initialize the regfile with meaningful values to avoid mismatch between the recode and IEEE 754 formats.
@@ -1038,7 +1037,6 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     )
     for (((en, addr, data), i) <- regfile_wports.zipWithIndex) {
       val difftest = DifftestModule(new DiffArchFpDelayedUpdate, delay = 1)
-      difftest.clock   := clock
       difftest.coreid  := 0.U
       difftest.index   := i.U
       difftest.valid   := en

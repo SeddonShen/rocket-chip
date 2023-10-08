@@ -776,7 +776,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   when (rf_wen) { rf.write(rf_waddr, rf_wdata) }
   if (true) {
     val difftest = DifftestModule(new DiffArchIntRegState)
-    difftest.clock  := clock
     difftest.coreid := 0.U
     difftest.value  := rf.values
   }
@@ -1082,7 +1081,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   }
   if (true) {
     val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
-    difftest.clock := clock
     difftest.coreid := 0.U
     difftest.index := 0.U
     difftest.valid := csr.io.trace(0).isCommit
@@ -1110,7 +1108,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   }
   if (true) {
     val difftest = DifftestModule(new DiffArchIntDelayedUpdate, delay = 1)
-    difftest.clock := clock
     difftest.coreid := 0.U
     difftest.index := 0.U
     difftest.valid := ll_wen_try && ll_waddr =/= 0.U

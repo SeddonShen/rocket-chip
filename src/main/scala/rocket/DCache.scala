@@ -462,7 +462,6 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
   when (s1_probe) { lrscCount := 0.U }
   if (true) {
     val difftest = DifftestModule(new DiffLrScEvent, delay = 1)
-    difftest.clock   := clock
     difftest.coreid  := 0.U
     difftest.valid   := io.cpu.resp.valid && s2_sc
     difftest.success := lrscValid && lrscAddrMatch
@@ -962,7 +961,6 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
   if (true) {
     val resp = io.cpu.resp
     val difftest = DifftestModule(new DiffStoreEvent, delay = 3)
-    difftest.clock  := clock
     difftest.coreid := 0.U
     difftest.index  := 0.U
     difftest.valid  := resp.valid && !resp.bits.has_data
