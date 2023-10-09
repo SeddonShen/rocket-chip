@@ -21,7 +21,7 @@ $(BOOTROM_IMG): $(BOOTROM_SRC)
 
 SCALA_FILE = $(shell find ./src/main/scala -name '*.scala')
 $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
-	mill -i rocketchip[$(CHISEL_VERSION)].runMain $(FUZZ_TOP) $(MILL_ARGS)
+	mill -i generator[$(CHISEL_VERSION)].runMain $(FUZZ_TOP) $(MILL_ARGS)
 	@cp src/main/resources/vsrc/EICG_wrapper.v $(BUILD_DIR)
 	@sed -i 's/UNOPTFLAT/LATCH/g' $(BUILD_DIR)/EICG_wrapper.v
 

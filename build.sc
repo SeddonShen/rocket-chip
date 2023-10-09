@@ -130,6 +130,25 @@ trait RocketChipPublishModule
   override def publishVersion: T[String] = T("1.6-SNAPSHOT")
 }
 
+object generator extends Cross[Generator](v.chiselCrossVersions.keys.toSeq)
+
+trait Generator extends SbtModule with Cross.Module[String] {
+
+  private val directory = if (crossValue.startsWith("3")) "chisel3" else "chisel"
+  override def millSourcePath = os.pwd / "generator" / directory
+
+  override def scalaVersion: T[String] = T(v.scala)
+
+  override def ivyDeps = Agg(v.chiselCrossVersions(crossValue)._1)
+
+  override def scalacPluginIvyDeps = Agg(v.chiselCrossVersions(crossValue)._2)
+
+  override def scalacOptions = T(Seq[String]())
+
+  override def moduleDeps = super.moduleDeps ++ Seq(
+    rocketchip(crossValue)
+  )
+}
 
 // Tests
 trait Emulator extends Cross.Module2[String, String] {
