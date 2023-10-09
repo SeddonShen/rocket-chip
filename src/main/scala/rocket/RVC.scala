@@ -108,7 +108,7 @@ class RVCDecoder(x: UInt, xLen: Int, useAddiForMv: Boolean = false) {
     }
     Seq(addi, jal, li, lui, arith, j, beqz, bnez)
   }
-  
+
   def q2 = {
     val load_opc = Mux(rd.orR, 0x03.U(7.W), 0x1F.U(7.W))
     def slli = inst(Cat(shamt, rd, 1.U(3.W), rd, 0x13.U(7.W)), rd, rd, rs2)

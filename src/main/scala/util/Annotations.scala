@@ -273,7 +273,7 @@ object GenRegDescsAnno {
       baseAddress = baseAddress,
       regFields = regFieldSers // Seq[RegFieldSer]()
     )
-    
+
     /* annotate the module with the registers */
     annotate(new ChiselAnnotation { def toFirrtl = RegFieldDescMappingAnnotation(rawModule.toNamed, registersSer) })
 
@@ -298,4 +298,3 @@ object GenRegDescsAnno {
           ("regfields" -> regDescs)))))
   }
 }
-

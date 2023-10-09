@@ -11,7 +11,6 @@ import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
-
 import scala.collection.mutable.ArrayBuffer
 
 case class RocketCoreParams(

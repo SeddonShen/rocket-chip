@@ -159,10 +159,10 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
 
     val prioBits = log2Ceil(nPriorities+1)
     val priority =
-      if (nPriorities > 0) Reg(Vec(nDevices, UInt(prioBits.W)))
+      if (nPriorities > 0) RegInit(VecInit.fill(nDevices)(0.U(prioBits.W)))
       else WireDefault(VecInit.fill(nDevices max 1)(1.U))
     val threshold =
-      if (nPriorities > 0) Reg(Vec(nHarts, UInt(prioBits.W)))
+      if (nPriorities > 0) RegInit(VecInit.fill(nHarts)(0.U(prioBits.W)))
       else WireDefault(VecInit.fill(nHarts)(0.U))
     val pending = RegInit(VecInit.fill(nDevices max 1){false.B})
 
@@ -170,14 +170,14 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
     val firstEnable = nDevices min 7
     val fullEnables = (nDevices - firstEnable) / 8
     val tailEnable  = nDevices - firstEnable - 8*fullEnables
-    def enableRegs = (Reg(UInt(firstEnable.W)) +:
-                      Seq.fill(fullEnables) { Reg(UInt(8.W)) }) ++
-                     (if (tailEnable > 0) Some(Reg(UInt(tailEnable.W))) else None)
+    def enableRegs = (RegInit(0.U(firstEnable.W)) +:
+                      Seq.fill(fullEnables) { RegInit(0.U(8.W)) }) ++
+                     (if (tailEnable > 0) Some(RegInit(0.U(tailEnable.W))) else None)
     val enables = Seq.fill(nHarts) { enableRegs }
     val enableVec = VecInit(enables.map(x => Cat(x.reverse)))
     val enableVec0 = VecInit(enableVec.map(x => Cat(x, 0.U(1.W))))
-    
-    val maxDevs = Reg(Vec(nHarts, UInt(log2Ceil(nDevices+1).W)))
+
+    val maxDevs = RegInit(VecInit.fill(nHarts)(0.U(log2Ceil(nDevices+1).W)))
     val pendingUInt = Cat(pending.reverse)
     if(nDevices > 0) {
       for (hart <- 0 until nHarts) {
@@ -185,7 +185,7 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
         fanin.io.prio := priority
         fanin.io.ip := enableVec(hart) & pendingUInt
         maxDevs(hart) := fanin.io.dev
-        harts(hart) := ShiftRegister(RegNext(fanin.io.max) > threshold(hart), params.intStages)
+        harts(hart) := ShiftRegister(RegNext(fanin.io.max, 0.U) > threshold(hart), params.intStages)
       }
     }
 
@@ -290,7 +290,7 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
             (true.B, maxDevs(i))
           },
           RegWriteFn { (valid, data) =>
-            assert(completerDev === data.extract(log2Ceil(nDevices+1)-1, 0), 
+            assert(Mux(valid, completerDev === data.extract(log2Ceil(nDevices+1)-1, 0), true.B),
                    "completerDev should be consistent for all harts")
             completerDev := data.extract(log2Ceil(nDevices+1)-1, 0)
             completer(i) := valid && enableVec0(i)(completerDev)
