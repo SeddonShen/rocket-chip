@@ -2,7 +2,7 @@ package freechips.rocketchip.system
 
 
 import chisel3._
-import difftest.{DifftestModule, LogCtrlIO, PerfInfoIO, UARTIO}
+import difftest.DifftestModule
 import freechips.rocketchip.devices.debug.{Debug, DebugModuleKey}
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
@@ -24,12 +24,6 @@ class ExampleFuzzSystem(implicit p: Parameters) extends RocketSubsystem
 class ExampleFuzzSystemImp[+L <: ExampleFuzzSystem](_outer: L) extends RocketSubsystemModuleImp(_outer)
 
 class SimTop(implicit p: Parameters) extends Module {
-  val io = IO(new Bundle {
-    val logCtrl = new LogCtrlIO
-    val perfInfo = new PerfInfoIO
-    val uart = new UARTIO
-  })
-
   val ldut = LazyModule(new ExampleFuzzSystem)
   val dut = Module(ldut.module)
 
@@ -40,7 +34,6 @@ class SimTop(implicit p: Parameters) extends Module {
   val success = WireInit(false.B)
   Debug.connectDebug(ldut.debug, ldut.resetctrl, ldut.psd, clock, reset.asBool, success)
 
-  io := DontCare
   ldut.module.meip.foreach(_.foreach(_ := false.B))
   ldut.module.seip.foreach(_.foreach(_ := false.B))
 
