@@ -9,7 +9,7 @@ object FuzzMain {
       freechips.rocketchip.diplomacy.DisableMonitors(p => new SimTop()(p))(new FuzzConfig)
     }))
     (new ChiselStage).execute(args, generator
-      :+ CIRCTTargetAnnotation(CIRCTTarget.Verilog)
+      :+ CIRCTTargetAnnotation(CIRCTTarget.SystemVerilog)
       :+ FirtoolOption("--disable-annotation-unknown")
     )
   }

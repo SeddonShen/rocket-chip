@@ -2,10 +2,20 @@ CHISEL_VERSION = 6.0.0-RC1
 
 FUZZ_TOP  = freechips.rocketchip.system.FuzzMain
 BUILD_DIR = $(abspath ./build)
-TOP_V     = $(BUILD_DIR)/SimTop.v
 
-MILL_ARGS = --target-dir $(BUILD_DIR) \
+RTL_DIR    = $(BUILD_DIR)/rtl
+RTL_SUFFIX = sv
+TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
+
+MILL_ARGS = --target-dir $(RTL_DIR) \
             --full-stacktrace
+
+ifeq ($(CHISEL_VERSION),3.6.0)
+RTL_SUFFIX = v
+TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
+else
+MILL_ARGS += --split-verilog
+endif
 
 # Coverage support
 ifneq ($(FIRRTL_COVER),)
@@ -22,14 +32,13 @@ $(BOOTROM_IMG): $(BOOTROM_SRC)
 SCALA_FILE = $(shell find ./src/main/scala -name '*.scala')
 $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
 	mill -i generator[$(CHISEL_VERSION)].runMain $(FUZZ_TOP) $(MILL_ARGS)
-	@cp src/main/resources/vsrc/EICG_wrapper.v $(BUILD_DIR)
-	@sed -i 's/UNOPTFLAT/LATCH/g' $(BUILD_DIR)/EICG_wrapper.v
+	@cp src/main/resources/vsrc/EICG_wrapper.v $(RTL_DIR)
+	@sed -i 's/UNOPTFLAT/LATCH/g' $(RTL_DIR)/EICG_wrapper.v
 
 sim-verilog: $(TOP_V)
-	cd $(BUILD_DIR) && bash ../scripts/extract_files.sh $(TOP_V)
 
 emu: sim-verilog
-	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0
+	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0 RTL_SUFFIX=$(RTL_SUFFIX)
 
 clean-emu:
 	rm -rf $(BUILD_DIR)
