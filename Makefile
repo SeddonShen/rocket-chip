@@ -40,7 +40,7 @@ sim-verilog: $(TOP_V)
 emu: sim-verilog
 	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0 RTL_SUFFIX=$(RTL_SUFFIX)
 
-clean-emu:
+clean:
 	rm -rf $(BUILD_DIR)
 
 idea:
@@ -58,5 +58,5 @@ MILL ?= mill
 verilog:
 	cd $(base_dir) && $(MILL) -i emulator[freechips.rocketchip.system.TestHarness,$(CONFIG)].mfccompiler.compile
 
-clean:
+clean-all: clean
 	rm -rf out/
