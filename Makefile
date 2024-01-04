@@ -46,6 +46,9 @@ clean:
 idea:
 	mill -i mill.scalalib.GenIdea/idea
 
+init:
+	git submodule update --init
+
 # Below is the original rocket-chip Makefile
 base_dir=$(abspath ./)
 
