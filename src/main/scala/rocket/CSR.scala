@@ -234,6 +234,7 @@ class TracedInstruction(implicit p: Parameters) extends CoreBundle {
   val wdata = Option.when(traceHasWdata)(UInt((vLen max xLen).W))
 
   def isCommit: Bool = valid && !(exception || interrupt)
+  def isNemuTrap: Bool = insn === NEMU_TRAP
 }
 
 class TraceAux extends Bundle {
@@ -1644,7 +1645,7 @@ class CSRFile(
     cycleCnt := cycleCnt + 1.U
     val difftest = DifftestModule(new DiffTrapEvent)
     difftest.coreid   := 0.U
-    difftest.hasTrap  := false.B
+    difftest.hasTrap  := io.trace(0).isCommit && io.trace(0).isNemuTrap
     difftest.code     := 0.U
     difftest.cycleCnt := cycleCnt
     difftest.instrCnt := reg_instret

@@ -56,6 +56,7 @@ case class RocketCoreParams(
   fpu: Option[FPUParams] = Some(FPUParams()),
   debugROB: Boolean = false, // if enabled, uses a C++ debug ROB to generate trace-with-wdata
   haveCease: Boolean = true, // non-standard CEASE instruction
+  haveNemuTrap: Boolean = false, // non-standard NEMU_TRAP instruction
   haveSimTimeout: Boolean = true // add plusarg for simulation timeout
 ) extends CoreParams {
   val lgPauseCycles = 5
@@ -210,6 +211,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     Seq(new FenceIDecode(tile.dcache.flushOnFenceI, aluFn)) ++:
     coreParams.haveCFlush.option(new CFlushDecode(tile.dcache.canSupportCFlushLine, aluFn)) ++:
     rocketParams.haveCease.option(new CeaseDecode(aluFn)) ++:
+    rocketParams.haveNemuTrap.option(new NemuTrapDecode(aluFn)) ++:
     Seq(new IDecode(aluFn))
   } flatMap(_.table)
 

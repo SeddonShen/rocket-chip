@@ -130,6 +130,11 @@ class CeaseDecode(aluFn: ALUFN = ALUFN())(implicit val p: Parameters) extends De
     CEASE->     List(Y,N,N,N,N,N,N,X,N,N,N,A2_X,   A1_X,   IMM_X, DW_X,  aluFn.FN_X,     N,M_X,        N,N,N,N,N,N,N,CSR.I,N,N,N,N))
 }
 
+class NemuTrapDecode(aluFn: ALUFN = ALUFN())(implicit val p: Parameters) extends DecodeConstants
+{
+  val table: Array[(BitPat, List[BitPat])] = Array(
+    NEMU_TRAP -> List(Y,N,N,N,N,N,N,X,N,N,N,A2_X,   A1_X,   IMM_X, DW_X,  aluFn.FN_X,     N,M_X,        N,N,N,N,N,N,N,CSR.N,N,N,N,N))
+}
 
 class FenceIDecode(flushDCache: Boolean, aluFn: ALUFN = ALUFN())(implicit val p: Parameters) extends DecodeConstants
 {
