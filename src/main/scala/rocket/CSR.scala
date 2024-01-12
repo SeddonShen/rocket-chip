@@ -320,6 +320,8 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle
     val set_vstart = Flipped(Valid(vstart))
     val set_vxsat = Input(Bool())
   })
+
+  val difftest = Output(new DiffCSRState)
 }
 
 class VConfig(implicit p: Parameters) extends CoreBundle {
@@ -1653,29 +1655,25 @@ class CSRFile(
     difftest.pc       := io.pc
   }
 
-  if (true) {
-    val difftest = DifftestModule(new DiffCSRState)
-    difftest.coreid := 0.U
-    difftest.priviledgeMode := Cat(reg_debug, reg_mstatus.prv)
-    difftest.mstatus := read_mstatus
-    difftest.sstatus := sstatus
-    difftest.mepc := readEPC(reg_mepc).sextTo(xLen)
-    difftest.sepc := readEPC(reg_sepc).sextTo(xLen)
-    difftest.mtval := reg_mtval.sextTo(xLen)
-    difftest.stval := reg_stval.sextTo(xLen)
-    difftest.mtvec := read_mtvec
-    difftest.stvec := read_stvec
-    difftest.mcause := reg_mcause
-    difftest.scause := reg_scause
-    difftest.satp := reg_satp.asUInt
-    difftest.mip := reg_mip.asUInt
-    difftest.mie := reg_mie
-    difftest.mscratch := reg_mscratch
-    difftest.sscratch := reg_sscratch
-    difftest.mideleg := read_mideleg
-    difftest.medeleg := read_medeleg
-
-  }
+  io.difftest.coreid := 0.U
+  io.difftest.priviledgeMode := Cat(reg_debug, reg_mstatus.prv)
+  io.difftest.mstatus := read_mstatus
+  io.difftest.sstatus := sstatus
+  io.difftest.mepc := readEPC(reg_mepc).sextTo(xLen)
+  io.difftest.sepc := readEPC(reg_sepc).sextTo(xLen)
+  io.difftest.mtval := reg_mtval.sextTo(xLen)
+  io.difftest.stval := reg_stval.sextTo(xLen)
+  io.difftest.mtvec := read_mtvec
+  io.difftest.stvec := read_stvec
+  io.difftest.mcause := reg_mcause
+  io.difftest.scause := reg_scause
+  io.difftest.satp := reg_satp.asUInt
+  io.difftest.mip := reg_mip.asUInt
+  io.difftest.mie := reg_mie
+  io.difftest.mscratch := reg_mscratch
+  io.difftest.sscratch := reg_sscratch
+  io.difftest.mideleg := read_mideleg
+  io.difftest.medeleg := read_medeleg
 
   def chooseInterrupt(masksIn: Seq[UInt]): (Bool, UInt) = {
     val nonstandard = supported_interrupts.getWidth-1 to 12 by -1

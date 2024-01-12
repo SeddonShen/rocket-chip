@@ -6,7 +6,7 @@ package freechips.rocketchip.rocket
 import chisel3._
 import chisel3.util._
 import chisel3.withClock
-import difftest.{DiffArchIntDelayedUpdate, DiffArchIntRegState, DiffInstrCommit, DifftestModule}
+import difftest.{DiffArchIntDelayedUpdate, DiffArchIntRegState, DiffCSRState, DiffInstrCommit, DifftestModule}
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
@@ -819,6 +819,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     iobpw.rvalid.foreach(_ := false.B)
     iobpw.wvalid.foreach(_ := false.B)
     iobpw.ivalid.foreach(_ := false.B)
+  }
+  if (true) {
+    val difftest = DifftestModule(new DiffCSRState)
+    difftest := csr.io.difftest
   }
 
   val hazard_targets = Seq((id_ctrl.rxs1 && id_raddr1 =/= 0.U, id_raddr1),
