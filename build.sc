@@ -8,7 +8,7 @@ import $file.common
 import $file.difftest.build
 
 object v {
-  val scala = "2.13.12"
+  val scala = "2.13.10"
   // the first version in this Map is the mainly supported version which will be used to run tests
   val chiselCrossVersions = Map(
     "3.6.0" -> (ivy"edu.berkeley.cs::chisel3:3.6.0", ivy"edu.berkeley.cs:::chisel3-plugin:3.6.0"),
