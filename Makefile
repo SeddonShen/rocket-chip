@@ -10,6 +10,10 @@ TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
 MILL_ARGS = --target-dir $(RTL_DIR) \
             --full-stacktrace
 
+ifeq ($(XFUZZ),1)
+CHISEL_VERSION = 3.6.0
+endif
+
 ifeq ($(CHISEL_VERSION),3.6.0)
 RTL_SUFFIX = v
 TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
