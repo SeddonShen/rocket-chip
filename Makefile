@@ -33,6 +33,8 @@ BOOTROM_IMG = $(BOOTROM_DIR)/bootrom.img
 $(BOOTROM_IMG): $(BOOTROM_SRC)
 	@make -C $(BOOTROM_DIR) all
 
+bootrom: $(BOOTROM_IMG)
+
 SCALA_FILE = $(shell find ./src/main/scala -name '*.scala')
 $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
 	mill -i generator[$(CHISEL_VERSION)].runMain $(FUZZ_TOP) $(MILL_ARGS)
