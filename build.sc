@@ -1,6 +1,7 @@
 import mill._
 import mill.scalalib._
 import mill.scalalib.publish._
+import common.HasChisel
 import coursier.maven.MavenRepository
 import $file.hardfloat.common
 import $file.cde.common
@@ -82,6 +83,32 @@ trait Difftest
 
 object difftest extends mill.define.Cross[Difftest](v.chiselCrossVersions.keys.toSeq)
 
+trait CcoverModule extends SbtModule
+    with HasChisel
+    with Cross.Module[String] {
+
+  def scalaVersion: T[String] = T(v.scala)
+
+  def sourceRoot = T.sources { T.workspace / "ccover" / "instrumentation" / "src" }
+
+  private def getSources(p: PathRef) = if (os.exists(p.path)) os.walk(p.path) else Seq()
+
+  def allSources = T { sourceRoot().flatMap(getSources).map(PathRef(_)) }
+
+  def chiselModule: Option[ScalaModule] = None
+
+  def chiselPluginJar: T[Option[PathRef]] = None
+
+  def chiselIvy = Some(v.chiselCrossVersions(crossValue)._1)
+
+  def chiselPluginIvy = Some(v.chiselCrossVersions(crossValue)._2)
+
+  def ivyDeps = super.ivyDeps() ++ Agg(ivy"edu.berkeley.cs::chiseltest:0.6.2")
+
+}
+
+object ccover extends Cross[CcoverModule](v.chiselCrossVersions.keys.toSeq)
+
 object rocketchip extends Cross[RocketChip](v.chiselCrossVersions.keys.toSeq)
 
 trait RocketChip
@@ -134,7 +161,9 @@ object generator extends Cross[Generator](v.chiselCrossVersions.keys.toSeq)
 
 trait Generator extends SbtModule with Cross.Module[String] {
 
-  private val directory = if (crossValue.startsWith("3")) "chisel3" else "chisel"
+  private val isChisel3 = crossValue.startsWith("3")
+
+  private val directory = if (isChisel3) "chisel3" else "chisel"
   override def millSourcePath = os.pwd / "generator" / directory
 
   override def scalaVersion: T[String] = T(v.scala)
@@ -145,9 +174,10 @@ trait Generator extends SbtModule with Cross.Module[String] {
 
   override def scalacOptions = T(Seq[String]())
 
-  override def moduleDeps = super.moduleDeps ++ Seq(
-    rocketchip(crossValue)
-  )
+  override def moduleDeps = super.moduleDeps ++
+    Some(rocketchip(crossValue)) ++
+    Option.when(isChisel3)(ccover(crossValue))
+
 }
 
 // Tests
