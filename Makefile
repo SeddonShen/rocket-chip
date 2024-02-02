@@ -50,7 +50,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 idea:
-	mill -i mill.scalalib.GenIdea/idea
+	mill -i mill.idea.GenIdea/idea
 
 init:
 	git submodule update --init
