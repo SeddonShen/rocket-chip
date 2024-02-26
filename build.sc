@@ -15,6 +15,7 @@ object v {
     "3.6.0" -> (ivy"edu.berkeley.cs::chisel3:3.6.0", ivy"edu.berkeley.cs:::chisel3-plugin:3.6.0"),
     "5.0.0" -> (ivy"org.chipsalliance::chisel:5.0.0", ivy"org.chipsalliance:::chisel-plugin:5.0.0"),
     "6.0.0" -> (ivy"org.chipsalliance::chisel:6.0.0", ivy"org.chipsalliance:::chisel-plugin:6.0.0"),
+    "6.1.0" -> (ivy"org.chipsalliance::chisel:6.1.0", ivy"org.chipsalliance:::chisel-plugin:6.1.0"),
   )
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"
