@@ -1656,7 +1656,7 @@ class CSRFile(
   }
 
   io.difftest.coreid := 0.U
-  io.difftest.priviledgeMode := Cat(reg_debug, reg_mstatus.prv)
+  io.difftest.privilegeMode := Cat(reg_debug, reg_mstatus.prv)
   io.difftest.mstatus := read_mstatus
   io.difftest.sstatus := sstatus
   io.difftest.mepc := readEPC(reg_mepc).sextTo(xLen)
