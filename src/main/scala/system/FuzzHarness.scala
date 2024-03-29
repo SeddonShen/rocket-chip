@@ -37,7 +37,7 @@ class SimTop(implicit p: Parameters) extends Module {
   ldut.module.meip.foreach(_.foreach(_ := false.B))
   ldut.module.seip.foreach(_.foreach(_ := false.B))
 
-  DifftestModule.finish("rocket-chip")
+  val difftest = DifftestModule.finish("rocket-chip")
 }
 
 class FuzzConfig extends Config(

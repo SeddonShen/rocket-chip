@@ -6,11 +6,12 @@ package freechips.rocketchip.rocket
 import chisel3._
 import chisel3.util._
 import chisel3.withClock
-import difftest.{DiffArchIntDelayedUpdate, DiffArchIntRegState, DiffCSRState, DiffInstrCommit, DifftestModule}
+import difftest._
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
+
 import scala.collection.mutable.ArrayBuffer
 
 case class RocketCoreParams(
@@ -749,6 +750,13 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     val difftest = DifftestModule(new DiffArchIntRegState)
     difftest.coreid := 0.U
     difftest.value  := rf.values
+  }
+  if (true) {
+    val difftest = DifftestModule(new DiffIntWriteback)
+    difftest.coreid := 0.U
+    difftest.valid := rf_wen
+    difftest.address := rf_waddr
+    difftest.data := rf_wdata
   }
 
   // hook up control/status regfile
