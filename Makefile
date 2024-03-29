@@ -40,6 +40,11 @@ $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
 	mill -i generator[$(CHISEL_VERSION)].runMain $(FUZZ_TOP) $(MILL_ARGS)
 	@cp src/main/resources/vsrc/EICG_wrapper.v $(RTL_DIR)
 	@sed -i 's/UNOPTFLAT/LATCH/g' $(RTL_DIR)/EICG_wrapper.v
+	@for file in $(RTL_DIR)/*.$(RTL_SUFFIX); do                              \
+		sed -i -e 's/$$fatal/xs_assert(`__LINE__)/g' "$$file";           \
+		sed -i -e "s/\$$error(/\$$fwrite(32\'h80000002, /g" "$$file";    \
+	done
+
 
 sim-verilog: $(TOP_V)
 
