@@ -1045,7 +1045,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
       (load_wb, load_wb_tag, recode(load_wb_data, load_wb_typeTag)),
     )
     for (((en, addr, data), i) <- regfile_wports.zipWithIndex) {
-      val difftest = DifftestModule(new DiffArchFpDelayedUpdate, delay = 1)
+      val difftest = DifftestModule(new DiffArchFpDelayedUpdate, delay = 2)
       difftest.coreid  := 0.U
       difftest.index   := i.U
       difftest.valid   := en
