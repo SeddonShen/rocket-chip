@@ -155,6 +155,30 @@ class RVCDecoder(x: UInt, xLen: Int, useAddiForMv: Boolean = false) {
     val s = q0 ++ q1 ++ q2 ++ q3
     s(Cat(x(1,0), x(15,13)))
   }
+
+  def q0_ill = {
+    def allz = !(x(12, 2).orR)
+    Seq(allz, false.B, false.B, false.B, true.B, false.B, false.B, false.B)
+  }
+
+  def q1_ill = {
+    def rd0 = rd === 0.U
+    def immz = !(x(12) | x(6, 2).orR)
+    def arith_res = x(12, 10).andR && x(6) === 1.U
+    Seq(false.B, rd0, false.B, immz, arith_res, false.B, false.B, false.B)
+  }
+
+  def q2_ill = {
+    def rd0 = rd === 0.U
+    def jr_res = !(x(12 ,2).orR)
+    Seq(false.B, rd0, rd0, rd0, jr_res, false.B, false.B, false.B)
+  }
+  def q3_ill = Seq.fill(8)(false.B)
+
+  def ill = {
+    val s = q0_ill ++ q1_ill ++ q2_ill ++ q3_ill
+    s(Cat(x(1,0), x(15,13)))
+  }
 }
 
 class RVCExpander(useAddiForMv: Boolean = false)(implicit val p: Parameters) extends Module with HasCoreParameters {
@@ -162,13 +186,17 @@ class RVCExpander(useAddiForMv: Boolean = false)(implicit val p: Parameters) ext
     val in = Input(UInt(32.W))
     val out = Output(new ExpandedInstruction)
     val rvc = Output(Bool())
+    val ill = Output(Bool())
   })
 
   if (usingCompressed) {
     io.rvc := io.in(1,0) =/= 3.U
-    io.out := new RVCDecoder(io.in, p(XLen), useAddiForMv).decode
+    val decoder = new RVCDecoder(io.in, p(XLen), useAddiForMv)
+    io.out := decoder.decode
+    io.ill := decoder.ill
   } else {
     io.rvc := false.B
     io.out := new RVCDecoder(io.in, p(XLen), useAddiForMv).passthrough
+    io.ill := false.B // only used for RVC
   }
 }
