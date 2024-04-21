@@ -1,4 +1,4 @@
-CHISEL_VERSION = 6.2.0
+CHISEL_VERSION = 6.3.0
 
 FUZZ_TOP  = freechips.rocketchip.system.FuzzMain
 BUILD_DIR = $(abspath ./build)
