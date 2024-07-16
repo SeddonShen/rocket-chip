@@ -12,12 +12,8 @@ object v {
   val scala = "2.13.10"
   // the first version in this Map is the mainly supported version which will be used to run tests
   val chiselCrossVersions = Map(
-    "3.6.0" -> (ivy"edu.berkeley.cs::chisel3:3.6.0", ivy"edu.berkeley.cs:::chisel3-plugin:3.6.0"),
-    "5.0.0" -> (ivy"org.chipsalliance::chisel:5.0.0", ivy"org.chipsalliance:::chisel-plugin:5.0.0"),
-    "6.0.0" -> (ivy"org.chipsalliance::chisel:6.0.0", ivy"org.chipsalliance:::chisel-plugin:6.0.0"),
-    "6.1.0" -> (ivy"org.chipsalliance::chisel:6.1.0", ivy"org.chipsalliance:::chisel-plugin:6.1.0"),
-    "6.2.0" -> (ivy"org.chipsalliance::chisel:6.2.0", ivy"org.chipsalliance:::chisel-plugin:6.2.0"),
-    "6.3.0" -> (ivy"org.chipsalliance::chisel:6.3.0", ivy"org.chipsalliance:::chisel-plugin:6.3.0"),
+    "3.6.1" -> (ivy"edu.berkeley.cs::chisel3:3.6.1", ivy"edu.berkeley.cs:::chisel3-plugin:3.6.1"),
+    "6.5.0" -> (ivy"org.chipsalliance::chisel:6.5.0", ivy"org.chipsalliance:::chisel-plugin:6.5.0"),
   )
   val mainargs = ivy"com.lihaoyi::mainargs:0.5.0"
   val json4sJackson = ivy"org.json4s::json4s-jackson:4.0.5"

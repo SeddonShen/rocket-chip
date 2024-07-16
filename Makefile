@@ -1,4 +1,4 @@
-CHISEL_VERSION = 6.3.0
+CHISEL_VERSION = 6.5.0
 
 FUZZ_TOP  = freechips.rocketchip.system.FuzzMain
 BUILD_DIR = $(abspath ./build)
@@ -11,10 +11,10 @@ MILL_ARGS = --target-dir $(RTL_DIR) \
             --full-stacktrace
 
 ifeq ($(XFUZZ),1)
-CHISEL_VERSION = 3.6.0
+CHISEL_VERSION = 3.6.1
 endif
 
-ifeq ($(CHISEL_VERSION),3.6.0)
+ifeq ($(CHISEL_VERSION),3.6.1)
 RTL_SUFFIX = v
 TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
 else
