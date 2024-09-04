@@ -1633,8 +1633,7 @@ class CSRFile(
   }
 
   if (true) {
-    val difftest = DifftestModule(new DiffArchEvent, delay = 1)
-    difftest               := DontCare
+    val difftest = DifftestModule(new DiffArchEvent, delay = 1, dontCare = true)
     difftest.coreid        := 0.U
     difftest.valid         := exception
     difftest.interrupt     := Mux(exception && cause(xLen-1), cause, 0.U)
