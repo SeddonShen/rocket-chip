@@ -11,3 +11,6 @@
 	path = difftest
 	url = https://github.com/OpenXiangShan/difftest.git
 
+[submodule "ccover"]
+	path = ccover
+	url = git@github.com:SeddonShen/SFuzz.git
