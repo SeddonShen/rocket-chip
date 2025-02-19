@@ -19,3 +19,5 @@ rocketchip.jar
 build
 bootrom/bootrom.img
 
+.metals/
+.vscode/
