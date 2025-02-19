@@ -52,16 +52,21 @@ class AXI4RAM(
     requestKeys = if (wcorrupt) Seq(AMBACorrupt) else Seq(),
     minLatency = 1)))
 
+  println("AXI4RAM has been initialized")
+  println("AXI4RAM address: " + address + " cacheable: " + cacheable + " executable: " + executable + " beatBytes: " + beatBytes + " devName: " + devName)
+  
   private val outer = this
 
   lazy val module = new Impl
-  class Impl extends LazyModuleImp(this) with HasJustOneSeqMem {
+  class Impl extends LazyModuleImp(this) {
     val (in, edgeIn) = node.in(0)
     val laneDataBits = 8
-    val mem = makeSinglePortedByteWriteSeqMem(
+    val mem = difftest.common.DifftestMem(
       size = BigInt(1) << mask.filter(b=>b).size,
       lanes = beatBytes,
-      bits = laneDataBits)
+      bits = laneDataBits,
+      singlePort = false,
+    )
     val eccCode = None
     val address = outer.address
 
@@ -116,6 +121,10 @@ class AXI4RAM(
 
     val ren = in.ar.fire
     val rdata = mem.readAndHold(r_addr, ren)
+    // printf when ren, data
+    when(ren){
+      printf("AXI4RAM read: %x %x\n", r_addr, Cat(rdata.reverse))
+    }
     val rcorrupt = corrupt.map(_.readAndHold(r_addr, ren)(0)).getOrElse(false.B)
 
     in. r.valid := r_full

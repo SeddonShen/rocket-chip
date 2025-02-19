@@ -6,6 +6,7 @@ package freechips.rocketchip.rocket
 import chisel3._
 import chisel3.util._
 import chisel3.withClock
+import difftest._
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.tile._
 import freechips.rocketchip.util._
@@ -1243,6 +1244,20 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
          coreMonitorBundle.inst, coreMonitorBundle.inst)
     }
+  }
+  if (true) {
+    val difftestArchEvent = DifftestModule(new DiffArchEvent, delay = 1, dontCare = true)
+    difftestArchEvent := DontCare
+    val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
+    difftest.coreid := 0.U
+    difftest.index := 0.U
+    difftest.valid := 0.U
+    val difftestCSRState = DifftestModule(new DiffCSRState)
+    difftestCSRState := DontCare
+    val difftestIntRegState = DifftestModule(new DiffArchIntRegState)
+    difftestIntRegState := DontCare
+    val difftestTrapEvent = DifftestModule(new DiffTrapEvent)
+    difftestTrapEvent := DontCare
   }
 
   // CoreMonitorBundle for late latency writes

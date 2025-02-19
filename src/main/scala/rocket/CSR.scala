@@ -14,6 +14,7 @@ import freechips.rocketchip.util.property
 import scala.collection.mutable.LinkedHashMap
 import Instructions._
 import CustomInstructions._
+import difftest.{DiffArchEvent, DiffCSRState, DiffTrapEvent, DifftestModule}
 
 class MStatus extends Bundle {
   // not truly part of mstatus, but convenient
@@ -230,6 +231,8 @@ class TracedInstruction(implicit p: Parameters) extends CoreBundle {
   val cause = UInt(xLen.W)
   val tval = UInt((coreMaxAddrBits max iLen).W)
   val wdata = Option.when(traceHasWdata)(UInt((vLen max xLen).W))
+
+  def isCommit: Bool = valid && !(exception || interrupt)
 }
 
 class TraceAux extends Bundle {
@@ -316,10 +319,12 @@ class CSRFileIO(hasBeu: Boolean)(implicit p: Parameters) extends CoreBundle
     val set_vstart = Flipped(Valid(vstart))
     val set_vxsat = Input(Bool())
   })
+
+  val difftest = Output(new DiffCSRState)
 }
 
 class VConfig(implicit p: Parameters) extends CoreBundle {
-  val vl = UInt((maxVLMax.log2 + 1).W)
+  val vl = UInt((maxVLMax.log2 + 1).W )
   val vtype = new VType
 }
 
@@ -590,6 +595,8 @@ class CSRFile(
   val reg_mcountinhibit = RegInit(0.U((CSR.firstHPM + nPerfCounters).W))
   io.inhibit_cycle := reg_mcountinhibit(0)
   val reg_instret = WideCounter(64, io.retire, inhibit = reg_mcountinhibit(2))
+  // print this cycle's retire count
+  // printf("retire: %d\n", reg_instret)
   val reg_cycle = if (enableCommitLog) WideCounter(64, io.retire,     inhibit = reg_mcountinhibit(0))
     else withClock(io.ungated_clock) { WideCounter(64, !io.csr_stall, inhibit = reg_mcountinhibit(0)) }
   val reg_hpmevent = io.counters.map(c => RegInit(0.U(xLen.W)))
@@ -749,6 +756,7 @@ class CSRFile(
     sgeip_mask.sgeip := true.B
     read_mideleg & ~(hs_delegable_interrupts | sgeip_mask.asUInt)
   }
+  val sstatus = WireInit(0.U(64.W))
   if (usingSupervisor) {
     val read_sie = reg_mie & sie_mask
     val read_sip = read_mip & sie_mask
@@ -764,6 +772,7 @@ class CSRFile(
     read_sstatus.spp := io.status.spp
     read_sstatus.spie := io.status.spie
     read_sstatus.sie := io.status.sie
+    sstatus := read_sstatus.asTypeOf(sstatus)
 
     read_mapping += CSRs.sstatus -> (read_sstatus.asUInt)(xLen-1,0)
     read_mapping += CSRs.sip -> read_sip.asUInt
@@ -1628,6 +1637,59 @@ class CSRFile(
     t.wdata.foreach(_ := DontCare)
   }
 
+  if (true) {
+    val difftest = DifftestModule(new DiffArchEvent, delay = 1, dontCare = true)
+    difftest.coreid        := 0.U
+    difftest.valid         := exception
+    difftest.interrupt     := Mux(exception && cause(xLen-1), cause, 0.U)
+    difftest.exception     := Mux(exception && !cause(xLen-1), cause, 0.U)
+    difftest.exceptionPC   := io.pc
+    difftest.exceptionInst := io.inst.head
+    when(exception){
+      // printf  (p"exception: ${cause} ${io.pc} ${io.inst.head}\n")
+      printf (p"exception: ${cause} ${io.pc} ${io.inst.head}\n")
+    }
+  }
+
+  if (true) {
+    val cycleCnt = RegInit(0.U(64.W))
+    cycleCnt := cycleCnt + 1.U
+    val difftest = DifftestModule(new DiffTrapEvent)
+    difftest.coreid   := 0.U
+    difftest.hasTrap  := io.trace(0).isCommit && (io.trace(0).insn === 0x0000006b.U)
+    // not support for NEMUTrap Inst && io.trace(0).isNemuTrap
+    // BitPat("b?????????????????000?????1101011")'s insts are all nemu trap
+    difftest.code     := 0.U
+    difftest.cycleCnt := cycleCnt
+    difftest.instrCnt := reg_instret
+    difftest.hasWFI   := 0.U
+    difftest.pc       := io.pc
+  }
+
+  io.difftest.coreid := 0.U
+  io.difftest.privilegeMode := Cat(reg_debug, reg_mstatus.prv)
+  io.difftest.mstatus := read_mstatus
+  io.difftest.sstatus := sstatus
+  io.difftest.mepc := readEPC(reg_mepc).sextTo(xLen)
+  io.difftest.sepc := readEPC(reg_sepc).sextTo(xLen)
+  io.difftest.mtval := reg_mtval.sextTo(xLen)
+  io.difftest.stval := reg_stval.sextTo(xLen)
+  io.difftest.mtvec := read_mtvec
+  // io.difftest.stvec := read_stvec
+  io.difftest.stvec := 0.U // FIXME: change back
+  io.difftest.mcause := reg_mcause
+  io.difftest.scause := reg_scause
+  // io.difftest.satp := reg_satp.asUInt
+  io.difftest.satp := 0.U // FIXME: change back
+  io.difftest.mip := reg_mip.asUInt
+  // io.difftest.mie := reg_mie
+  io.difftest.mie := 0.U // FIXME: change back
+  io.difftest.mscratch := reg_mscratch
+  io.difftest.sscratch := reg_sscratch
+  io.difftest.mideleg := read_mideleg
+  io.difftest.medeleg := read_medeleg
+  // printf the value of mstatus and sstatus
+  // printf("mstatus: %x sstatus: %x ...\n", read_mstatus, sstatus)
   def chooseInterrupt(masksIn: Seq[UInt]): (Bool, UInt) = {
     val nonstandard = supported_interrupts.getWidth-1 to 12 by -1
     // MEI, MSI, MTI,  SEI, SSI, STI, VSEI, VSSI, VSTI, UEI, USI, UTI
