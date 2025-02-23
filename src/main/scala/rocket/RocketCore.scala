@@ -1187,6 +1187,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
 class RegFile(n: Int, w: Int, zero: Boolean = false) {
   val rf = Mem(n, UInt(w.W))
+  for (i <- 0 until n) {
+    rf(i) := 0.U(w.W)
+  }
   private def access(addr: UInt) = rf(~addr(log2Up(n)-1,0))
   private val reads = ArrayBuffer[(UInt,UInt)]()
   private var canRead = true

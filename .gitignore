@@ -21,3 +21,14 @@ bootrom/bootrom.img
 
 .metals/
 .vscode/
+
+.bloop/
+
+crashes/*
+
+ready-to-run/
+corpus/
+tmp/
+
+scripts/bmcfuzz/logs/
+scripts/bmcfuzz/__pycache__/

@@ -15,10 +15,15 @@ CHISEL_VERSION = 3.6.1
 endif
 
 ifeq ($(CHISEL_VERSION),3.6.1)
-RTL_SUFFIX = v
+RTL_SUFFIX = sv
 TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
 else
 MILL_ARGS += --split-verilog
+endif
+
+# sverilog support
+ifeq ($(RTL_SUFFIX),sv)
+MILL_ARGS += -X sverilog
 endif
 
 # Coverage support
@@ -49,7 +54,15 @@ $(TOP_V): $(SCALA_FILE) $(BOOTROM_IMG)
 sim-verilog: $(TOP_V)
 
 emu: sim-verilog
-	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0 RTL_SUFFIX=$(RTL_SUFFIX)
+	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0 RTL_SUFFIX=$(RTL_SUFFIX) CPU=CPU_ROCKET_CHIP
+
+src: sim-verilog
+
+fuzzer: 
+	@$(MAKE) -C difftest emu WITH_CHISELDB=0 WITH_CONSTANTIN=0 RTL_SUFFIX=$(RTL_SUFFIX) CPU=CPU_ROCKET_CHIP
+
+ccover:
+	@$(MAKE) -C ./ccover build
 
 clean:
 	rm -rf $(BUILD_DIR)
