@@ -26,7 +26,6 @@ bootrom/bootrom.img
 
 crashes/*
 
-ready-to-run/
 corpus/
 tmp/
 
