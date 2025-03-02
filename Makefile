@@ -36,7 +36,7 @@ BOOTROM_SRC = $(BOOTROM_DIR)/bootrom.S
 BOOTROM_IMG = $(BOOTROM_DIR)/bootrom.img
 
 $(BOOTROM_IMG): $(BOOTROM_SRC)
-	@make -C $(BOOTROM_DIR) all
+	@make -C $(BOOTROM_DIR) all CROSS=riscv64-linux-gnu-
 
 bootrom: $(BOOTROM_IMG)
 
