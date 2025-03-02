@@ -24,6 +24,8 @@ bootrom/bootrom.img
 
 .bloop/
 
+.bsp/
+
 crashes/*
 
 corpus/

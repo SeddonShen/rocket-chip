@@ -180,6 +180,42 @@ class WithNSmallCores(
   }
 })
 
+class WithNBMCCores(
+  n: Int,
+  overrideIdOffset: Option[Int] = None,
+  crossing: RocketCrossingParams = RocketCrossingParams()
+) extends Config((site, here, up) => {
+  case TilesLocated(InSubsystem) => {
+    val prev = up(TilesLocated(InSubsystem), site)
+    val idOffset = overrideIdOffset.getOrElse(prev.size)
+    val small = RocketTileParams(
+      core = RocketCoreParams(fpu = None),
+      btb = None,
+      dcache = Some(DCacheParams(
+        rowBits = site(SystemBusKey).beatBits,
+        nSets = 2,
+        nWays = 1,
+        nTLBSets = 1,
+        nTLBWays = 4,
+        nMSHRs = 0,
+        blockBytes = site(CacheBlockBytes))),
+      icache = Some(ICacheParams(
+        rowBits = site(SystemBusKey).beatBits,
+        nSets = 2,
+        nWays = 1,
+        nTLBSets = 1,
+        nTLBWays = 4,
+        latency = 2,
+        // latency = 1,
+        // fetchBytes = 8,
+        blockBytes = site(CacheBlockBytes))))
+    List.tabulate(n)(i => RocketTileAttachParams(
+      small.copy(hartId = i + idOffset),
+      crossing
+    )) ++ prev
+  }
+})
+
 class With1TinyCore extends Config((site, here, up) => {
   case XLen => 32
   case TilesLocated(InSubsystem) => {

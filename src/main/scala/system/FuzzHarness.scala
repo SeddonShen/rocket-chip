@@ -41,7 +41,8 @@ class SimTop(implicit p: Parameters) extends Module {
 }
 
 class FuzzConfig extends Config(
-  new WithNBigCores(1).alter((site, _, up) => {
+//   new WithNBigCores(1).alter((site, _, up) => {
+  new WithNBMCCores(1).alter((site, _, up) => {
     case TilesLocated(InSubsystem) => up(TilesLocated(InSubsystem), site).map {
       case tp: RocketTileAttachParams => tp.copy(tileParams = tp.tileParams.copy(
         core = tp.tileParams.core.copy(
