@@ -1172,15 +1172,15 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     def read(addr: UInt): Bool = r(addr)
     def readBypassed(addr: UInt): Bool = _next(addr)
 
-    private val _r = RegInit(0.U(n.W))
-    private val r = if (zero) (_r >> 1 << 1) else _r
+    private val reg_r = RegInit(0.U(n.W))
+    private val r = if (zero) (reg_r >> 1 << 1) else reg_r
     private var _next = r
     private var ens = false.B
     private def mask(en: Bool, addr: UInt) = Mux(en, 1.U << addr, 0.U)
     private def update(en: Bool, update: UInt) = {
       _next = update
       ens = ens || en
-      when (ens) { _r := _next }
+      when (ens) { reg_r := _next }
     }
   }
 }
