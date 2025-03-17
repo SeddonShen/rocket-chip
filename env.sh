@@ -22,7 +22,7 @@ export CSR_TRANSITION_DIR=$(pwd)/ccover/SetInitValues
 
 # riscv corpus
 export RISCV_CORPUS=$(pwd)/corpus/footprints/riscv-tests
-# export RISCV_CORPUS=$(pwd)/corpus/linearized/riscv-dv
+# export RISCV_CORPUS=$(pwd)/corpus/linearized/riscv-tests
 
 # RTL Source and Destination
 # export RTL_SRC_DIR=$(pwd)/build/rtl
