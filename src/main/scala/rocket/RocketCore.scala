@@ -832,6 +832,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     val difftest = DifftestModule(new DiffCSRState)
     difftest := csr.io.difftest
   }
+  if (true) {
+    val difftest = DifftestModule(new DiffSnapshotCSRState)
+    difftest := csr.io.snapshot
+  }
 
   val hazard_targets = Seq((id_ctrl.rxs1 && id_raddr1 =/= 0.U, id_raddr1),
                            (id_ctrl.rxs2 && id_raddr2 =/= 0.U, id_raddr2),

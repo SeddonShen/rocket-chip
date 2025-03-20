@@ -27,6 +27,7 @@ bootrom/bootrom.img
 .bsp/
 
 crashes/*
+errors/*
 
 corpus/
 tmp/
