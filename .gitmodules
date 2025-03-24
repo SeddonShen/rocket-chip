@@ -13,4 +13,4 @@
 
 [submodule "ccover"]
 	path = ccover
-	url = git@github.com:SeddonShen/SFuzz.git
+	url = https://github.com/SeddonShen/SFuzz.git
