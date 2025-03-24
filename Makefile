@@ -10,7 +10,7 @@ TOP_V      = $(RTL_DIR)/SimTop.$(RTL_SUFFIX)
 MILL_ARGS = --target-dir $(RTL_DIR) \
             --full-stacktrace
 
-ifeq ($(XFUZZ),1)
+ifeq ($(BMCFUZZ),1)
 CHISEL_VERSION = 3.6.1
 endif
 

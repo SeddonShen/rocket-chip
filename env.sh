@@ -1,6 +1,7 @@
-# XFUZZ Environment Variables
 export NOOP_HOME=$(pwd)
-export XFUZZ_HOME=$(pwd)/ccover
+export BMCFUZZ_HOME=$(pwd)/ccover
+
+# source $BMCFUZZ_HOME/env.sh
 
 # OSS CAD Suite
 export OSS_CAD_SUITE_HOME=$(pwd)/../oss-cad-suite/environment
