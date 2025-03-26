@@ -189,7 +189,10 @@ class WithNBMCCores(
     val prev = up(TilesLocated(InSubsystem), site)
     val idOffset = overrideIdOffset.getOrElse(prev.size)
     val small = RocketTileParams(
-      core = RocketCoreParams(fpu = None),
+      core = RocketCoreParams(
+        nPTECacheEntries = 0,
+        fpu = None
+        ),
       btb = None,
       dcache = Some(DCacheParams(
         rowBits = site(SystemBusKey).beatBits,
@@ -197,6 +200,7 @@ class WithNBMCCores(
         nWays = 1,
         nTLBSets = 1,
         nTLBWays = 4,
+        nTLBSuperpages = 1,
         nMSHRs = 0,
         blockBytes = site(CacheBlockBytes))),
       icache = Some(ICacheParams(
@@ -205,6 +209,7 @@ class WithNBMCCores(
         nWays = 1,
         nTLBSets = 1,
         nTLBWays = 4,
+        nTLBSuperpages = 1,
         latency = 2,
         // latency = 1,
         // fetchBytes = 8,
