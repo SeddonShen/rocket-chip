@@ -188,8 +188,12 @@ class WithNBMCCores(
   case TilesLocated(InSubsystem) => {
     val prev = up(TilesLocated(InSubsystem), site)
     val idOffset = overrideIdOffset.getOrElse(prev.size)
-    val small = RocketTileParams(
+    val bmc = RocketTileParams(
       core = RocketCoreParams(
+        mulDiv = Some(MulDivParams(
+        mulUnroll = 8,
+        mulEarlyOut = true,
+        divEarlyOut = true)),
         nPTECacheEntries = 0,
         fpu = None
         ),
@@ -211,11 +215,9 @@ class WithNBMCCores(
         nTLBWays = 4,
         nTLBSuperpages = 1,
         latency = 2,
-        // latency = 1,
-        // fetchBytes = 8,
         blockBytes = site(CacheBlockBytes))))
     List.tabulate(n)(i => RocketTileAttachParams(
-      small.copy(hartId = i + idOffset),
+      bmc.copy(hartId = i + idOffset),
       crossing
     )) ++ prev
   }
