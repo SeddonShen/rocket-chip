@@ -15,6 +15,7 @@ import scala.collection.mutable.LinkedHashMap
 import Instructions._
 import CustomInstructions._
 import difftest.{DiffArchEvent, DiffCSRState, DiffTrapEvent, DifftestModule}
+import difftest.DiffSnapshotCSRState
 
 class MStatus extends Bundle {
   // not truly part of mstatus, but convenient
@@ -321,6 +322,7 @@ class CSRFileIO(hasBeu: Boolean)(implicit p: Parameters) extends CoreBundle
   })
 
   val difftest = Output(new DiffCSRState)
+  val snapshot = Output(new DiffSnapshotCSRState)
 }
 
 class VConfig(implicit p: Parameters) extends CoreBundle {
@@ -1688,6 +1690,10 @@ class CSRFile(
   io.difftest.sscratch := reg_sscratch
   io.difftest.mideleg := read_mideleg
   io.difftest.medeleg := read_medeleg
+
+  io.snapshot.coreid   := 0.U
+  io.snapshot.minstret := reg_instret
+  io.snapshot.mcycle   := reg_cycle
   // printf the value of mstatus and sstatus
   // printf("mstatus: %x sstatus: %x ...\n", read_mstatus, sstatus)
   def chooseInterrupt(masksIn: Seq[UInt]): (Bool, UInt) = {
