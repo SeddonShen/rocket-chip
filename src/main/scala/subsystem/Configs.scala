@@ -194,7 +194,7 @@ class WithNBMCCores(
         mulUnroll = 8,
         mulEarlyOut = true,
         divEarlyOut = true)),
-        nPTECacheEntries = 1,
+        nPTECacheEntries = 0,
         fpu = None
         ),
       btb = None,
@@ -202,18 +202,18 @@ class WithNBMCCores(
         rowBits = site(SystemBusKey).beatBits,
         nSets = 2,
         nWays = 1,
-        nTLBSets = 8,
-        nTLBWays = 4,
-        nTLBSuperpages = 1,
+        nTLBSets = 1,
+        nTLBWays = 16,
+        nTLBSuperpages = 4,
         nMSHRs = 0,
         blockBytes = site(CacheBlockBytes))),
       icache = Some(ICacheParams(
         rowBits = site(SystemBusKey).beatBits,
         nSets = 2,
         nWays = 1,
-        nTLBSets = 8,
-        nTLBWays = 4,
-        nTLBSuperpages = 1,
+        nTLBSets = 1,
+        nTLBWays = 16,
+        nTLBSuperpages = 4,
         latency = 2,
         blockBytes = site(CacheBlockBytes))))
     List.tabulate(n)(i => RocketTileAttachParams(
