@@ -203,8 +203,8 @@ class WithNBMCCores(
         nSets = 2,
         nWays = 1,
         nTLBSets = 1,
-        nTLBWays = 16,
-        nTLBSuperpages = 4,
+        nTLBWays = 4,
+        nTLBSuperpages = 1,
         nMSHRs = 0,
         blockBytes = site(CacheBlockBytes))),
       icache = Some(ICacheParams(
@@ -212,8 +212,8 @@ class WithNBMCCores(
         nSets = 2,
         nWays = 1,
         nTLBSets = 1,
-        nTLBWays = 16,
-        nTLBSuperpages = 4,
+        nTLBWays = 4,
+        nTLBSuperpages = 1,
         latency = 2,
         blockBytes = site(CacheBlockBytes))))
     List.tabulate(n)(i => RocketTileAttachParams(
