@@ -122,9 +122,9 @@ class AXI4RAM(
     val ren = in.ar.fire
     val rdata = mem.readAndHold(r_addr, ren)
     // printf when ren, data
-    when(ren){
-      printf("AXI4RAM read: %x %x\n", r_addr, Cat(rdata.reverse))
-    }
+    // when(ren){
+    //   printf("AXI4RAM read: %x %x\n", r_addr, Cat(rdata.reverse))
+    // }
     val rcorrupt = corrupt.map(_.readAndHold(r_addr, ren)(0)).getOrElse(false.B)
 
     in. r.valid := r_full

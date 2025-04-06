@@ -1572,6 +1572,11 @@ class CSRFile(
 
   when(reset.asBool) {
     reg_satp.mode  := 0.U
+    reg_satp.asid  := 0.U
+    reg_satp.ppn   := 0.U
+    reg_mie        := 0.U
+    reg_mideleg    := 0.U
+    reg_medeleg    := 0.U
     reg_vsatp.mode := 0.U
     reg_hgatp.mode := 0.U
   }
@@ -1647,10 +1652,10 @@ class CSRFile(
     difftest.exception     := Mux(exception && !cause(xLen-1), cause, 0.U)
     difftest.exceptionPC   := io.pc
     difftest.exceptionInst := io.inst.head
-    when(exception){
+    // when(exception){
       // printf  (p"exception: ${cause} ${io.pc} ${io.inst.head}\n")
-      printf (p"exception: ${cause} ${io.pc} ${io.inst.head}\n")
-    }
+    //   printf (p"exception: ${cause} ${io.pc} ${io.inst.head}\n")
+    // }
   }
 
   if (true) {
@@ -1677,15 +1682,15 @@ class CSRFile(
   io.difftest.mtval := reg_mtval.sextTo(xLen)
   io.difftest.stval := reg_stval.sextTo(xLen)
   io.difftest.mtvec := read_mtvec
-  // io.difftest.stvec := read_stvec
-  io.difftest.stvec := 0.U // FIXME: change back
+  io.difftest.stvec := read_stvec
+//   io.difftest.stvec := 0.U // FIXME: change back
   io.difftest.mcause := reg_mcause
   io.difftest.scause := reg_scause
-  // io.difftest.satp := reg_satp.asUInt
-  io.difftest.satp := 0.U // FIXME: change back
+  io.difftest.satp := reg_satp.asUInt
+//   io.difftest.satp := 0.U // FIXME: change back
   io.difftest.mip := reg_mip.asUInt
-  // io.difftest.mie := reg_mie
-  io.difftest.mie := 0.U // FIXME: change back
+  io.difftest.mie := reg_mie
+//   io.difftest.mie := 0.U // FIXME: change back
   io.difftest.mscratch := reg_mscratch
   io.difftest.sscratch := reg_sscratch
   io.difftest.mideleg := read_mideleg
