@@ -13,7 +13,7 @@ import CoherenceManagerWrapper._
 
 /** Global cache coherence granularity, which applies to all caches, for now. */
 // case object CacheBlockBytes extends Field[Int](64)
-case object CacheBlockBytes extends Field[Int](16)
+case object CacheBlockBytes extends Field[Int](32)
 
 /** L2 Broadcast Hub configuration */
 case object BroadcastKey extends Field(BroadcastParams())
