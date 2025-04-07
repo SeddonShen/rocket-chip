@@ -535,11 +535,11 @@ class CSRFile(
 
   val delegable_counters = ((BigInt(1) << (nPerfCounters + CSR.firstHPM)) - 1).U
   val (reg_mcounteren, read_mcounteren) = {
-    val reg = Reg(UInt(32.W))
+    val reg = RegInit(0.U(32.W))
     (reg, Mux(usingUser.B, reg & delegable_counters, 0.U))
   }
   val (reg_scounteren, read_scounteren) = {
-    val reg = Reg(UInt(32.W))
+    val reg = RegInit(0.U(32.W))
     (reg, Mux(usingSupervisor.B, reg & delegable_counters, 0.U))
   }
 
@@ -718,7 +718,7 @@ class CSRFile(
   read_mapping ++= vector_csrs
 
   if (coreParams.haveBasicCounters) {
-    read_mapping += CSRs.mcountinhibit -> reg_mcountinhibit
+    // read_mapping += CSRs.mcountinhibit -> reg_mcountinhibit
     read_mapping += CSRs.mcycle -> reg_cycle
     read_mapping += CSRs.minstret -> reg_instret
 
@@ -1314,7 +1314,7 @@ class CSRFile(
       when (decoded_addr(i + CSR.firstHPE)) { e := perfEventSets.maskEventSelector(wdata) }
     }
     if (coreParams.haveBasicCounters) {
-      when (decoded_addr(CSRs.mcountinhibit)) { reg_mcountinhibit := wdata & ~2.U(xLen.W) }  // mcountinhibit bit [1] is tied zero
+    //   when (decoded_addr(CSRs.mcountinhibit)) { reg_mcountinhibit := wdata & ~2.U(xLen.W) }  // mcountinhibit bit [1] is tied zero
       writeCounter(CSRs.mcycle, reg_cycle, wdata)
       writeCounter(CSRs.minstret, reg_instret, wdata)
     }
@@ -1647,9 +1647,9 @@ class CSRFile(
   if (true) {
     val difftest = DifftestModule(new DiffArchEvent, delay = 1, dontCare = true)
     difftest.coreid        := 0.U
-    difftest.valid         := exception
-    difftest.interrupt     := Mux(exception && cause(xLen-1), cause, 0.U)
-    difftest.exception     := Mux(exception && !cause(xLen-1), cause, 0.U)
+    difftest.valid         := io.exception
+    difftest.interrupt     := Mux(io.exception && io.cause(xLen-1), io.cause, 0.U)
+    difftest.exception     := Mux(io.exception && !io.cause(xLen-1), io.cause, 0.U)
     difftest.exceptionPC   := io.pc
     difftest.exceptionInst := io.inst.head
     // when(exception){
