@@ -660,10 +660,10 @@ class CSRFile(
   val read_stvec = formTVec(reg_stvec).sextTo(xLen)
 
   val read_mapping = LinkedHashMap[Int,Bits](
-    CSRs.tselect -> reg_tselect,
-    CSRs.tdata1 -> reg_bp(reg_tselect).control.asUInt,
-    CSRs.tdata2 -> reg_bp(reg_tselect).address.sextTo(xLen),
-    CSRs.tdata3 -> reg_bp(reg_tselect).textra.asUInt,
+    // CSRs.tselect -> reg_tselect,
+    // CSRs.tdata1 -> reg_bp(reg_tselect).control.asUInt,
+    // CSRs.tdata2 -> reg_bp(reg_tselect).address.sextTo(xLen),
+    // CSRs.tdata3 -> reg_bp(reg_tselect).textra.asUInt,
     CSRs.misa -> reg_misa,
     CSRs.mstatus -> read_mstatus,
     CSRs.mtvec -> read_mtvec,
