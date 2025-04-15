@@ -255,7 +255,7 @@ case class TLBConfig(
     nSets: Int,
     nWays: Int,
     nSectors: Int = 4,
-    nSuperpageEntries: Int = 4)
+    nSuperpageEntries: Int = 1)
 
 /** =Overview=
   * [[TLB]] is a TLB template which contains PMA logic and PMP checker.
