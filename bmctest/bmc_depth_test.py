@@ -4,6 +4,17 @@ BMC depth test script for standalone rocket-chip modules.
 
 Tests how deep BMC must unroll to cover each cover point,
 identifying modules where BMC hits a depth bottleneck.
+
+对 rocket-chip 独立抽取的硬件模块做 BMC（有界模型检查）深度测试。
+四步流水线：
+  1) process_rtl     — RTL 插桩：统一时钟、解析 GEN 覆盖实例、插入属性、约束寄存器初始值
+  2) generate_sby     — 为每个 cover point 生成独立 .sby 任务文件
+  3) run_bmc          — 多线程并行调用 sby 求解
+  4) analyze_results  — 汇总统计，输出深度分布与瓶颈判定
+
+两种模式：
+  - SMT：插入 cover() 属性，用 smtbmc+bitwuzla 做可达性搜索；PASS 表示 cover point 已覆盖
+  - SAT：插入取反 assert(~...) 属性，用 aiger+rIC3 做反例搜索（FAIL 表示已覆盖，语义等价）
 """
 
 import argparse
@@ -25,8 +36,9 @@ except ImportError:
         return iterable
 
 # ── Module configuration ─────────────────────────────────────────────
-# Maps module key → (sv_filename, top_module_name)
-# Derived from generator/chisel3/src/main/scala/ModuleGenTop.scala
+# 模块 key → (SV 源文件名, 顶层模块名) 的映射表。
+# 来源：ModuleGenTop.scala 中为每个硬件模块单独生成的 Standalone 包装器。
+# key 用于 CLI --module 参数及目录命名，value 中的文件名/顶层名在 RTL 读取和 sby prep 中使用。
 MODULE_CONFIG: Dict[str, Tuple[str, str]] = {
     "broadcast":   ("StandaloneBroadcast.sv",  "StandaloneBroadcast"),
     "xbar":        ("StandaloneXbar.sv",       "StandaloneXbar"),
@@ -45,7 +57,8 @@ MODULE_CONFIG: Dict[str, Tuple[str, str]] = {
     "replacement": ("ReplacementModule.sv",    "ReplacementModule"),
 }
 
-# MemRWHelper.v allocates 2 GB RAM under SYNTHESIS — formal tools cannot handle it
+# axi4xbar 依赖的 MemRWHelper.v 在 `define SYNTHESIS 下静态分配 2 GB 内存，
+# 形式验证工具在展开时会 OOM，因此排除该模块。
 EXCLUDED_MODULES = {"axi4xbar"}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -86,12 +99,17 @@ def process_rtl(
     rtl_out.mkdir(parents=True, exist_ok=True)
 
     # ── 0. Copy black-box .v files & create define.sv ────────────────
+    # GEN_w*_*.v 是 Chisel 生成的覆盖率黑盒模块（verilog 占位实现），
+    # 必须拷贝到工作目录供 sby read -formal 引用。
     for vf in build_dir.glob("GEN_w*_*.v"):
         shutil.copy2(vf, rtl_out)
     plusarg = build_dir / "plusarg_reader.v"
     if plusarg.exists():
         shutil.copy2(plusarg, rtl_out)
 
+    # SYNTHESIS 宏：使 RTL 走综合路径（跳过仿真专用代码，如 MemRWHelper 的 $readmemh）。
+    # sfuzz_rand_reg 宏：将 Chisel 生成的未初始化寄存器声明为 formal 的 rand reg，
+    # 让求解器自由选取初始值而非固定为 X。
     (rtl_out / "define.sv").write_text(
         "`define SYNTHESIS\n`define sfuzz_rand_reg rand reg\n"
     )
@@ -101,10 +119,18 @@ def process_rtl(
         lines = f.readlines()
 
     # ── 2. Clock unification ─────────────────────────────────────────
+    # 形式验证要求单时钟域：将所有 posedge <任意时钟> 统一为 posedge glb_clk，
+    # 避免多时钟域导致求解器搜索空间爆炸或产生不可达的虚假状态。
     clk_re = re.compile(r"\(posedge (\w+)\)")
     lines = [clk_re.sub("(posedge glb_clk)", ln) for ln in lines]
 
     # ── 3-4. Parse GEN instances & insert cover / assert ─────────────
+    # Chisel 覆盖率插桩生成形如 GEN_w<宽度>_<覆盖类型> 的模块实例，
+    # 例如 GEN_w1_toggle toggle_5(...)，其中 w=信号宽度，数字后缀=全局 cover 编号。
+    # 这里解析每个实例的 reset/valid 端口，然后在实例结尾注入形式属性：
+    #   SMT 模式 → cover(valid[bit])，求解器搜索使 valid 为高的路径
+    #   SAT 模式 → assert(~valid[bit])，若能找到反例则说明 cover point 可达（语义等价）
+    # 当 width > 1 时需逐位展开，每一位作为独立 cover point。
     cover_indices: List[int] = []
 
     esc = re.escape(cover_type)
@@ -165,6 +191,12 @@ def process_rtl(
                 new_lines.append("  end\n")
 
     # ── 5. Initial assume for uninitialized regs ─────────────────────
+    # 在形式验证的初始状态中，未赋初值的寄存器处于任意值（X 态），
+    # 求解器可能利用这些自由变量构造物理上不可达的路径（虚假反例）。
+    # 加 initial assume(!reg) 将其约束为零，与硬件复位后的真实行为一致，
+    # 从而剪枝无效搜索空间。
+    # 跳过 RAND 辅助寄存器（Chisel 内部随机化桩）和带有显式初始值的寄存器。
+    # 数组寄存器超过 16 项时跳过，避免约束数量爆炸。
     single_re = re.compile(
         r"^\s*reg\s*(\[\d+:\d+\])?\s+(\w+)(\s*=\s*[^;]+)?;"
     )
@@ -210,6 +242,9 @@ def process_rtl(
 
 
 # ── SBY generation ───────────────────────────────────────────────────
+# 为每个 cover point 生成独立的 .sby 配置文件。
+# 隔离策略：用 chformal 命令删除"当前目标以外的所有"属性，
+# 这样每次 sby 运行只求解一个 cover point，互不干扰。
 
 def generate_sby_files(
     module_key: str,
@@ -245,6 +280,10 @@ def generate_sby_files(
     formal_reads = "\n".join(f"read -formal {f.name}" for f in rtl_files)
     file_paths = "\n".join(str(f) for f in rtl_files)
 
+    # SMT 模式：mode=cover 让 smtbmc 求解"是否存在满足 cover() 的路径"；
+    #   引擎用 bitwuzla（现代 SMT 求解器，对位向量问题效率极高）。
+    # SAT 模式：mode=bmc 让 aiger 后端做经典 BMC，rIC3 为 IC3/PDR 求解器；
+    #   此时属性是 assert(~val)，FAIL 即找到反例 = val 可达 = covered。
     if mode == "smt":
         sby_mode = "cover"
         engine = "smtbmc bitwuzla"
@@ -255,6 +294,10 @@ def generate_sby_files(
     for idx in cover_indices:
         label = f"cov_count_{idx}"
 
+        # chformal 隔离当前 cover point：
+        # SMT: 删除"除 label 以外的所有 cover"（%n = 取补集），再删全部 assert
+        # SAT: 删除"除 label 以外的所有 assert"，再删全部 cover
+        # 这保证每次 sby 运行只求解 label 对应的那一个属性
         if mode == "smt":
             chformal = (
                 f"chformal -remove -cover c:{label} %n\n"
@@ -298,6 +341,8 @@ def generate_sby_files(
 
 
 # ── Parallel execution ───────────────────────────────────────────────
+# OSS CAD Suite 是开源 FPGA/形式验证工具集（含 yosys、sby、smtbmc 等），
+# 需要 source 其 environment 脚本来设置 PATH。
 
 def _find_env_path() -> str:
     """Locate the OSS CAD Suite ``environment`` script."""
@@ -315,6 +360,8 @@ def _find_env_path() -> str:
 
 def _find_sby_cmd() -> str:
     """Return the sby command — prefer the project-local custom build."""
+    # 优先使用项目内自定义 sby（ccover/sby/sbysrc/sby.py），
+    # 它可能包含对 chformal、引擎调用等的定制补丁；找不到则 fallback 到系统 sby
     custom = PROJECT_ROOT / "ccover" / "sby" / "sbysrc" / "sby.py"
     if custom.exists():
         return str(custom)
@@ -383,6 +430,9 @@ def run_bmc(
         if log_path.exists():
             log_text = log_path.read_text()
 
+            # 从日志提取已搜索到的最大深度
+            # SMT 日志格式: "Checking cover reachability in step N.."
+            # SAT 日志格式: "bmc depth: N"
             if mode == "smt":
                 steps = re.findall(
                     r"Checking cover reachability in step (\d+)\.\.", log_text,
@@ -392,6 +442,10 @@ def run_bmc(
             if steps:
                 depth = int(steps[-1])
 
+            # 状态映射——注意 SMT 和 SAT 的语义是反转的：
+            #   SMT cover 模式: PASS = 找到满足 cover() 的路径 = 已覆盖
+            #   SAT bmc  模式: FAIL = 找到 assert(~val) 的反例 = val 可达 = 已覆盖
+            # 因此统一映射为: PASS="已覆盖", FAIL="不可覆盖"
             done = re.search(r"DONE \((\S+),\s*rc=(\d+)\)", log_text)
             if done:
                 result_str = done.group(1)
@@ -434,6 +488,9 @@ def run_bmc(
 
 
 # ── Result analysis ──────────────────────────────────────────────────
+# 汇总所有 cover point 的求解结果，输出统计报告并判定是否存在 BMC 瓶颈。
+# 状态含义: PASS=在深度范围内成功覆盖, FAIL=在给定深度内不可覆盖,
+#           TIMEOUT=求解超时, ERROR=工具异常
 
 def analyze_results(
     module_key: str,
@@ -465,6 +522,7 @@ def analyze_results(
     covered_depths = sorted(r["depth"] for r in covered)
 
     # ── Depth distribution (buckets of 10) ───────────────────────────
+    # 按 10 为一桶统计已覆盖点的深度分布，直观展示哪些深度区间集中
     depth_dist: Dict[str, int] = {}
     if covered_depths:
         max_bucket = (covered_depths[-1] // 10 + 1) * 10
@@ -487,6 +545,8 @@ def analyze_results(
         median_depth = 0.0
 
     # ── BMC bottleneck: (uncovered + timeout) / total > 30% ─────────
+    # 瓶颈判定标准：FAIL + TIMEOUT 占比超过 30%，说明当前深度/超时不足以
+    # 覆盖大部分点，模块可能存在长依赖链或状态空间过大的问题
     uncoverable_count = len(uncovered) + len(timed_out)
     uncoverable_rate = uncoverable_count / total
     is_bottleneck = uncoverable_rate > 0.3
@@ -555,8 +615,18 @@ def _print_cross_module_summary(
     reports_dir: Path,
 ) -> None:
     """Print and persist a cross-module comparison table."""
+    # 跨模块对比表各列含义:
+    #   Total  — cover point 总数
+    #   Cover  — 已覆盖数 (PASS)
+    #   Fail   — 不可覆盖数 (FAIL，给定深度内未找到路径)
+    #   TmOut  — 超时数
+    #   Rate   — 覆盖率 = Cover / Total
+    #   AvgD   — 已覆盖点的平均深度
+    #   MaxD   — 已覆盖点的最大深度
+    #   BN?    — 是否为瓶颈模块 (uncoverable > 30%)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
+    # 按 uncoverable_rate 降序排列，瓶颈模块排在最前面
     ranked = sorted(
         summaries, key=lambda s: s["uncoverable_rate"], reverse=True
     )
@@ -616,6 +686,8 @@ def _print_cross_module_summary(
 
 
 # ── CLI ──────────────────────────────────────────────────────────────
+# --module 和 --all 互斥：前者测试单个模块，后者遍历 MODULE_CONFIG 中
+# 除 EXCLUDED_MODULES 以外的所有模块
 
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -631,6 +703,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Test all 15 modules (excluding axi4xbar)",
     )
 
+    # --depth: BMC 展开深度，即最多模拟多少个时钟周期
+    # --timeout: 单个 cover point 的求解超时（秒）
+    # --mode: smt=cover+smtbmc, sat=bmc+aiger（需配合 --ric3）
+    # --workers: 并行线程数，实际取 min(workers, cpu_count)
+    # --ric3: rIC3 求解器路径，SAT 模式必需
     p.add_argument("--depth", type=int, default=50,
                    help="BMC unrolling depth (default: 50)")
     p.add_argument("--timeout", type=int, default=3600,
@@ -653,6 +730,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main():
+    """四步流水线: process_rtl → generate_sby_files → run_bmc → analyze_results"""
     args = build_arg_parser().parse_args()
 
     if args.mode == "sat" and not args.ric3:
@@ -683,7 +761,7 @@ def main():
             shutil.rmtree(work_path)
         work_path.mkdir(parents=True, exist_ok=True)
 
-        # Step 1 — instrument RTL
+        # Step 1 — RTL 插桩：统一时钟、插入 cover/assert、初始化假设
         cover_indices = process_rtl(
             mod, build_path, work_path, args.cover_type, args.mode,
         )
@@ -696,7 +774,7 @@ def main():
             f"[{cover_indices[0]} .. {cover_indices[-1]}]"
         )
 
-        # Step 2 — generate sby tasks
+        # Step 2 — 为每个 cover point 生成隔离的 .sby 配置
         generate_sby_files(
             mod, cover_indices, work_path,
             mode=args.mode,
@@ -704,7 +782,7 @@ def main():
             timeout=args.timeout,
         )
 
-        # Step 3 — parallel BMC execution
+        # Step 3 — 多线程并行执行 sby，解析日志得到每个点的深度和状态
         results = run_bmc(
             mod, work_path, cover_indices,
             mode=args.mode,
@@ -712,11 +790,11 @@ def main():
             ric3_path=args.ric3,
         )
 
-        # Step 4 — analyse & report
+        # Step 4 — 汇总统计、判定瓶颈、输出报告
         summary = analyze_results(mod, results, work_path)
         all_summaries.append(summary)
 
-    # Cross-module comparison (when testing multiple modules)
+    # --all 模式下多模块时输出跨模块对比表，按 uncoverable_rate 排序
     if len(all_summaries) > 1:
         reports_dir = SCRIPT_DIR / "reports"
         _print_cross_module_summary(all_summaries, reports_dir)
