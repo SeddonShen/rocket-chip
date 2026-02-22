@@ -63,6 +63,7 @@ EXCLUDED_MODULES = {"axi4xbar"}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
+DEFAULT_RIC3 = PROJECT_ROOT / "ccover" / "Formal" / "bin" / "rIC3"
 
 
 # ── RTL processing ───────────────────────────────────────────────────
@@ -474,13 +475,22 @@ def run_bmc(
     )
 
     results: List[dict] = []
+    counts = {"PASS": 0, "FAIL": 0, "TIMEOUT": 0, "ERROR": 0}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(_run_single, idx): idx for idx in cover_indices
         }
         with tqdm(total=len(futures), desc=f"BMC {module_key}") as pbar:
             for future in as_completed(futures):
-                results.append(future.result())
+                r = future.result()
+                results.append(r)
+                counts[r["status"]] = counts.get(r["status"], 0) + 1
+                pbar.set_postfix(
+                    P=counts["PASS"],
+                    F=counts["FAIL"],
+                    T=counts["TIMEOUT"],
+                    E=counts["ERROR"],
+                )
                 pbar.update(1)
 
     results.sort(key=lambda r: r["cover_id"])
@@ -712,8 +722,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="BMC unrolling depth (default: 50)")
     p.add_argument("--timeout", type=int, default=3600,
                    help="Per-task timeout in seconds (default: 3600)")
-    p.add_argument("--mode", choices=["smt", "sat"], default="smt",
-                   help="Verification mode (default: smt)")
+    p.add_argument("--mode", choices=["smt", "sat"], default="sat",
+                   help="Verification mode (default: sat)")
     p.add_argument("--workers", type=int, default=64,
                    help="Max parallel workers (default: 64)")
     p.add_argument("--ric3", default=None,
@@ -733,9 +743,12 @@ def main():
     """四步流水线: process_rtl → generate_sby_files → run_bmc → analyze_results"""
     args = build_arg_parser().parse_args()
 
-    if args.mode == "sat" and not args.ric3:
-        print("ERROR: --ric3 is required for SAT mode", file=sys.stderr)
-        sys.exit(1)
+    if args.mode == "sat":
+        if not args.ric3:
+            args.ric3 = str(DEFAULT_RIC3)
+        if not Path(args.ric3).exists():
+            print(f"ERROR: rIC3 not found at {args.ric3}", file=sys.stderr)
+            sys.exit(1)
 
     modules = (
         sorted(k for k in MODULE_CONFIG if k not in EXCLUDED_MODULES)
