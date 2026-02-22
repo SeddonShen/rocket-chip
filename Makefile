@@ -87,3 +87,35 @@ verilog:
 
 clean-all: clean
 	rm -rf out/
+
+# === Module Generation (BMCFuzz mode: Chisel 3.6.1 + coverage) ===
+MODULE_GEN_TOP = freechips.rocketchip.system.ModuleGenMain
+MODULE_RTL_DIR = $(BUILD_DIR)/modules
+MODULE_NAMES   = broadcast xbar axi4xbar plic sram_ecc toaxi4 fragmenter atomic \
+                 timer idpool jtag_fsm arbiter reorder_q ecc async_queue replacement
+MODULE_COVER  ?= mux,control
+
+MODULE_TARGETS = $(addprefix gen-,$(MODULE_NAMES))
+.PHONY: gen-modules $(MODULE_TARGETS) module-size
+
+gen-modules: $(MODULE_TARGETS)
+
+$(MODULE_TARGETS): gen-%:
+	@mkdir -p $(MODULE_RTL_DIR)/$*
+	NOOP_HOME=$(abspath .) mill -i generator[3.6.1].runMain $(MODULE_GEN_TOP) $* \
+	  --target-dir $(MODULE_RTL_DIR)/$* \
+	  --full-stacktrace \
+	  -X sverilog \
+	  COVER=$(MODULE_COVER)
+
+module-size: gen-modules
+	@echo "=== Module SV Size Report (with coverage instrumentation) ==="
+	@for name in $(MODULE_NAMES); do \
+	  sv_file=$$(ls $(MODULE_RTL_DIR)/$$name/*.sv 2>/dev/null | head -1); \
+	  if [ -n "$$sv_file" ]; then \
+	    lines=$$(wc -l < "$$sv_file"); \
+	    printf "  %-20s %6d lines  (%s)\n" "$$name" "$$lines" "$$sv_file"; \
+	  else \
+	    printf "  %-20s  [NOT FOUND]\n" "$$name"; \
+	  fi; \
+	done
