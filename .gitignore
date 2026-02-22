@@ -34,3 +34,5 @@ tmp/
 
 scripts/bmcfuzz/logs/
 scripts/bmcfuzz/__pycache__/
+bmctest/__pycache__
+bmctest/work/
