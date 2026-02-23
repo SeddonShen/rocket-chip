@@ -107,6 +107,8 @@ $(MODULE_TARGETS): gen-%:
 	  --full-stacktrace \
 	  -X sverilog \
 	  COVER=$(MODULE_COVER)
+	@cp -f $(BUILD_DIR)/generated-src/firrtl-cover.h  $(MODULE_RTL_DIR)/$*/
+	@cp -f $(BUILD_DIR)/generated-src/firrtl-cover.cpp $(MODULE_RTL_DIR)/$*/
 
 module-size: gen-modules
 	@echo "=== Module SV Size Report (with coverage instrumentation) ==="
