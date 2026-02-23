@@ -59,7 +59,9 @@ MODULE_CONFIG: Dict[str, Tuple[str, str]] = {
 
 # axi4xbar 依赖的 MemRWHelper.v 在 `define SYNTHESIS 下静态分配 2 GB 内存，
 # 形式验证工具在展开时会 OOM，因此排除该模块。
-EXCLUDED_MODULES = {"axi4xbar"}
+# async_queue 是双时钟域模块（io_enq_clock / io_deq_clock），
+# 不适用统一单时钟方案，因此排除。
+EXCLUDED_MODULES = {"axi4xbar", "async_queue"}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -234,6 +236,11 @@ def process_rtl(
     with open(rtl_out / sv_filename, "w") as f:
         f.writelines(final)
 
+    # ── 6. Copy static FormalTop.sv wrapper ───────────────────────────
+    formal_top_src = SCRIPT_DIR / "formal_top" / module_key / "FormalTop.sv"
+    if formal_top_src.exists():
+        shutil.copy2(formal_top_src, rtl_out)
+
     cover_indices.sort()
     print(
         f"[{module_key}] {len(cover_indices)} cover points extracted, "
@@ -322,7 +329,7 @@ def generate_sby_files(
             f"[script]\n"
             f"read -formal define.sv\n"
             f"{formal_reads}\n"
-            f"prep -top {top_module}\n"
+            f"prep -top FormalTop\n"
             f"{chformal}\n"
             f"\n"
             f"[files]\n"
