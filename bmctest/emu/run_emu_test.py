@@ -22,6 +22,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -174,31 +175,27 @@ def run_module(
                 cmd, stdout=sys.stdout, stderr=subprocess.PIPE,
                 text=True, cwd=str(BUILD_BASE / module), env=env,
             )
-            _, stderr_text = proc.communicate(timeout=timeout_secs)
-            elapsed = round(time.time() - t0, 2)
-            exit_code = proc.returncode
         else:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout_secs,
-                cwd=str(BUILD_BASE / module),
-                env=env,
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, cwd=str(BUILD_BASE / module), env=env,
             )
-            elapsed = round(time.time() - t0, 2)
-            exit_code = proc.returncode
-            stderr_text = proc.stderr
-    except subprocess.TimeoutExpired:
-        if live and mode == "fuzzer":
-            proc.kill()
-            proc.wait()
+        _, stderr_text = proc.communicate(timeout=timeout_secs)
         elapsed = round(time.time() - t0, 2)
+        exit_code = proc.returncode
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        _, stderr_text = proc.communicate()
+        elapsed = round(time.time() - t0, 2)
+        stderr_text = stderr_text or ""
+        coverage = _parse_coverage(stderr_text)
         return {
             "module": module,
             "status": "TIMEOUT",
             "elapsed_secs": elapsed,
             "timeout_limit": timeout_secs,
+            "coverage": coverage,
+            "stderr_tail": stderr_text[-500:] if stderr_text else "",
         }
     except Exception as e:
         elapsed = round(time.time() - t0, 2)
@@ -354,9 +351,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Input binary file for fuzz bytes")
     p.add_argument("-v", "--vcd", default=None,
                    help="VCD output file (EMU mode)")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     p.add_argument("--report", type=Path,
-                   default=SCRIPT_DIR.parent / "reports" / "emu_results.json",
-                   help="JSON report output path")
+                   default=SCRIPT_DIR.parent / "reports" / f"emu_results_{timestamp}.json",
+                   help="JSON report output path (default: timestamped filename)")
     p.add_argument("--live", action="store_true",
                    help="Stream fuzzer stdout to terminal in real-time (colored output)")
     return p
