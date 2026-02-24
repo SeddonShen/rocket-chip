@@ -65,6 +65,16 @@ RTL_EXTRA = $(wildcard $(MODULE_RTL)/$(MODULE)/plusarg_reader.v)
 # SimTop wrapper
 SIM_TOP_SV = $(EMU_DIR)/vsrc/SimTop_$(MODULE).sv
 
+# Auto-generate firrtl-cover.h/cpp from GEN_w*.v if not yet present
+_GEN_EXISTS    := $(wildcard $(MODULE_RTL)/$(MODULE)/GEN_w*.v)
+_COVER_MISSING := $(if $(wildcard $(MODULE_RTL)/$(MODULE)/firrtl-cover.h),,yes)
+ifneq ($(_GEN_EXISTS),)
+ifneq ($(_COVER_MISSING),)
+$(info [module-emu] Generating firrtl-cover for $(MODULE)...)
+_IGNORE := $(shell python3 $(EMU_DIR)/scripts/gen_firrtl_cover.py $(MODULE_RTL)/$(MODULE))
+endif
+endif
+
 # C++ sources
 EMU_CPP    = $(EMU_DIR)/csrc/module_emu.cpp
 COVER_CPP  = $(wildcard $(MODULE_RTL)/$(MODULE)/firrtl-cover.cpp)

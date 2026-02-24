@@ -152,6 +152,15 @@ extern "C" void update_stats(uint8_t *bytes) {
     }
 #endif
 }
+
+static bool _sim_verbose = false;
+
+extern "C" void set_cover_feedback(const char *) {
+    // In standalone mode, feedback cover is always the first type.
+}
+
+extern "C" void enable_sim_verbose()  { _sim_verbose = true;  }
+extern "C" void disable_sim_verbose() { _sim_verbose = false; }
 #endif // FUZZER_LIB
 
 // ── Simulation core ──────────────────────────────────────────────────
