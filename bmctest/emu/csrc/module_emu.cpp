@@ -173,6 +173,9 @@ static int run_sim(const uint8_t *input, size_t input_len,
     trace_count = 0;
 
     Verilated::randReset(2);
+    Verilated::gotError(false);
+    Verilated::gotFinish(false);
+    Verilated::fatalOnError(false);
 
     VSimTop *top = new VSimTop;
 
@@ -196,6 +199,8 @@ static int run_sim(const uint8_t *input, size_t input_len,
     const int reset_cycles = 10;
 
     while (trace_count < max_cycles && !sig_exit) {
+        if (Verilated::gotError() || Verilated::gotFinish())
+            break;
         if (done_reset && top->io_success)
             break;
 
@@ -203,6 +208,7 @@ static int run_sim(const uint8_t *input, size_t input_len,
         top->reset = (trace_count < (uint64_t)reset_cycles) ? 1 : 0;
         done_reset = !top->reset;
         top->eval();
+        if (Verilated::gotError()) break;
 
 #if VM_TRACE
         if (tfp) tfp->dump(static_cast<vluint64_t>(trace_count * 2));
@@ -210,6 +216,7 @@ static int run_sim(const uint8_t *input, size_t input_len,
 
         top->clock = 1;
         top->eval();
+        if (Verilated::gotError()) break;
 
 #if VM_TRACE
         if (tfp) tfp->dump(static_cast<vluint64_t>(trace_count * 2 + 1));
@@ -218,7 +225,9 @@ static int run_sim(const uint8_t *input, size_t input_len,
         trace_count++;
     }
 
-    if (trace_count >= max_cycles) {
+    if (Verilated::gotError()) {
+        ret = 1;
+    } else if (trace_count >= max_cycles) {
         ret = 2;
     }
 
@@ -250,17 +259,30 @@ extern "C" int sim_main(int argc, const char **argv) {
 
     const uint8_t *input = nullptr;
     size_t input_len = 0;
+    bool input_is_borrowed = false;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
-            FILE *fp = fopen(argv[++i], "rb");
-            if (fp) {
-                fseek(fp, 0, SEEK_END);
-                input_len = ftell(fp);
-                fseek(fp, 0, SEEK_SET);
-                uint8_t *buf = new uint8_t[input_len];
-                if (fread(buf, 1, input_len, fp) == input_len)
-                    input = buf;
-                fclose(fp);
+            const char *path = argv[++i];
+            // wim@0xADDR+0xLEN — workload-in-memory from Rust fuzzer
+            if (strncmp(path, "wim@", 4) == 0) {
+                char *endp;
+                uintptr_t addr = strtoull(path + 4, &endp, 16);
+                if (*endp == '+') {
+                    input_len = (size_t)strtoull(endp + 1, nullptr, 16);
+                    input = reinterpret_cast<const uint8_t *>(addr);
+                    input_is_borrowed = true;
+                }
+            } else {
+                FILE *fp = fopen(path, "rb");
+                if (fp) {
+                    fseek(fp, 0, SEEK_END);
+                    input_len = ftell(fp);
+                    fseek(fp, 0, SEEK_SET);
+                    uint8_t *buf = new uint8_t[input_len];
+                    if (fread(buf, 1, input_len, fp) == input_len)
+                        input = buf;
+                    fclose(fp);
+                }
             }
         }
     }
@@ -278,7 +300,8 @@ extern "C" int sim_main(int argc, const char **argv) {
     free_acc_cover();
 #endif
 
-    delete[] input;
+    if (!input_is_borrowed)
+        delete[] input;
     return ret;
 }
 

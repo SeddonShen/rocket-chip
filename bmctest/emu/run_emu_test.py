@@ -118,6 +118,7 @@ def run_module(
     module: str,
     mode: str = "fuzzer",
     max_cycles: int = 10000,
+    fuzz_iters: int = 100,
     timeout_secs: int = 300,
     input_file: Optional[str] = None,
     vcd_file: Optional[str] = None,
@@ -145,18 +146,22 @@ def run_module(
         if vcd_file:
             cmd.extend(["-v", vcd_file])
     else:
+        corpus_arg = input_file if input_file else "random"
         cmd.extend(["--fuzzing", "--only-fuzz", "--continue-on-errors",
-                    f"--max-iters={max_cycles}", "--corpus-input=random"])
-        if input_file:
-            cmd.extend(["--corpus-input", input_file])
+                    f"--max-iters={fuzz_iters}",
+                    f"--corpus-input={corpus_arg}",
+                    "--", "-m", str(max_cycles)])
 
     if extra_args:
         cmd.extend(extra_args)
 
     env = os.environ.copy()
     if mode == "fuzzer":
-        env.setdefault("COVER_POINTS_OUT", str(BUILD_BASE / module))
-        env.setdefault("NOOP_HOME", str(BUILD_BASE / module))
+        build_dir = BUILD_BASE / module
+        env.setdefault("COVER_POINTS_OUT", str(build_dir))
+        env.setdefault("NOOP_HOME", str(build_dir))
+        (build_dir / "tmp").mkdir(parents=True, exist_ok=True)
+        (build_dir / "corpus").mkdir(parents=True, exist_ok=True)
 
     t0 = time.time()
     try:
@@ -212,6 +217,7 @@ def run_pipeline(
     module: str,
     mode: str = "fuzzer",
     max_cycles: int = 10000,
+    fuzz_iters: int = 100,
     timeout_secs: int = 300,
     skip_build: bool = False,
     trace: bool = False,
@@ -236,11 +242,13 @@ def run_pipeline(
             }
         print(f"[{module}] Build OK")
 
-    print(f"[{module}] Running ({mode}, max_cycles={max_cycles})...")
+    print(f"[{module}] Running ({mode}, max_cycles={max_cycles}, "
+          f"fuzz_iters={fuzz_iters})...")
     result = run_module(
         module,
         mode=mode,
         max_cycles=max_cycles,
+        fuzz_iters=fuzz_iters,
         timeout_secs=timeout_secs,
         input_file=input_file,
         vcd_file=vcd_file,
@@ -313,7 +321,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--mode", choices=["fuzzer", "emu"], default="fuzzer",
                    help="Run mode (default: fuzzer)")
     p.add_argument("--max-cycles", type=int, default=10000,
-                   help="Max simulation cycles (default: 10000)")
+                   help="Max simulation cycles per iteration (default: 10000)")
+    p.add_argument("--fuzz-iters", type=int, default=100,
+                   help="Fuzzer iteration count (fuzzer mode only, default: 100)")
     p.add_argument("--timeout", type=int, default=300,
                    help="Per-module wall-clock timeout in seconds (default: 300)")
     p.add_argument("--jobs", "-j", type=int, default=1,
@@ -350,6 +360,7 @@ def main():
                     mod,
                     mode=args.mode,
                     max_cycles=args.max_cycles,
+                    fuzz_iters=args.fuzz_iters,
                     timeout_secs=args.timeout,
                     skip_build=args.skip_build,
                     trace=args.trace,
@@ -370,6 +381,7 @@ def main():
                 mod,
                 mode=args.mode,
                 max_cycles=args.max_cycles,
+                fuzz_iters=args.fuzz_iters,
                 timeout_secs=args.timeout,
                 skip_build=args.skip_build,
                 trace=args.trace,
