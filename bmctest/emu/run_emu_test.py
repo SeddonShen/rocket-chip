@@ -145,12 +145,18 @@ def run_module(
         if vcd_file:
             cmd.extend(["-v", vcd_file])
     else:
-        cmd.extend([f"--max-iters={max_cycles}"])
+        cmd.extend(["--fuzzing", "--only-fuzz", "--continue-on-errors",
+                    f"--max-iters={max_cycles}", "--corpus-input=random"])
         if input_file:
-            cmd.extend(["-i", input_file])
+            cmd.extend(["--corpus-input", input_file])
 
     if extra_args:
         cmd.extend(extra_args)
+
+    env = os.environ.copy()
+    if mode == "fuzzer":
+        env.setdefault("COVER_POINTS_OUT", str(BUILD_BASE / module))
+        env.setdefault("NOOP_HOME", str(BUILD_BASE / module))
 
     t0 = time.time()
     try:
@@ -160,6 +166,7 @@ def run_module(
             text=True,
             timeout=timeout_secs,
             cwd=str(BUILD_BASE / module),
+            env=env,
         )
         elapsed = round(time.time() - t0, 2)
         exit_code = proc.returncode
