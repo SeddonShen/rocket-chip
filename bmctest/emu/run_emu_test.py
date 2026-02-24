@@ -145,7 +145,7 @@ def run_module(
         if vcd_file:
             cmd.extend(["-v", vcd_file])
     else:
-        cmd.extend([f"--max-cycles={max_cycles}"])
+        cmd.extend([f"--max-iters={max_cycles}"])
         if input_file:
             cmd.extend(["-i", input_file])
 
