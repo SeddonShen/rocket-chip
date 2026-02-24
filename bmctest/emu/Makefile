@@ -19,7 +19,12 @@ MODULE_RTL   := $(PROJECT_ROOT)/build/modules
 MODULE      ?= timer
 BUILD_BASE  := $(BMCTEST_DIR)/build
 BUILD_DIR   := $(BUILD_BASE)/$(MODULE)
+BMCFUZZ ?=
+ifneq ($(BMCFUZZ),)
+COMPILE_DIR := $(BUILD_DIR)/fuzzer-compile
+else
 COMPILE_DIR := $(BUILD_DIR)/emu-compile
+endif
 
 # ── All 14 modules (excluding axi4xbar, async_queue) ─────────────────
 ALL_MODULES := broadcast xbar plic sram_ecc toaxi4 fragmenter atomic \
@@ -90,7 +95,6 @@ EMU_CXXFLAGS += -DVM_TRACE=1
 endif
 
 # ── Fuzzer mode ───────────────────────────────────────────────────────
-BMCFUZZ ?=
 ifneq ($(BMCFUZZ),)
 BMCFUZZ_HOME ?= $(PROJECT_ROOT)/ccover
 FUZZER_LIB    = $(BMCFUZZ_HOME)/target/release/libfuzzer.a
