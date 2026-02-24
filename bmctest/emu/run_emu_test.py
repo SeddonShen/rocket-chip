@@ -123,6 +123,7 @@ def run_module(
     input_file: Optional[str] = None,
     vcd_file: Optional[str] = None,
     extra_args: Optional[List[str]] = None,
+    live: bool = False,
 ) -> dict:
     """Run a single module's EMU/fuzzer and collect results."""
     if mode == "fuzzer":
@@ -147,10 +148,13 @@ def run_module(
             cmd.extend(["-v", vcd_file])
     else:
         corpus_arg = input_file if input_file else "random"
-        cmd.extend(["--fuzzing", "--only-fuzz", "--continue-on-errors",
-                    f"--max-iters={fuzz_iters}",
-                    f"--corpus-input={corpus_arg}",
-                    "--", "-m", str(max_cycles)])
+        fuzzer_flags = ["--fuzzing", "--only-fuzz", "--continue-on-errors",
+                        f"--max-iters={fuzz_iters}",
+                        f"--corpus-input={corpus_arg}"]
+        if live:
+            fuzzer_flags.append("--live")
+        fuzzer_flags.extend(["--", "-m", str(max_cycles)])
+        cmd.extend(fuzzer_flags)
 
     if extra_args:
         cmd.extend(extra_args)
@@ -165,18 +169,30 @@ def run_module(
 
     t0 = time.time()
     try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout_secs,
-            cwd=str(BUILD_BASE / module),
-            env=env,
-        )
-        elapsed = round(time.time() - t0, 2)
-        exit_code = proc.returncode
-        stderr_text = proc.stderr
+        if live and mode == "fuzzer":
+            proc = subprocess.Popen(
+                cmd, stdout=sys.stdout, stderr=subprocess.PIPE,
+                text=True, cwd=str(BUILD_BASE / module), env=env,
+            )
+            _, stderr_text = proc.communicate(timeout=timeout_secs)
+            elapsed = round(time.time() - t0, 2)
+            exit_code = proc.returncode
+        else:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout_secs,
+                cwd=str(BUILD_BASE / module),
+                env=env,
+            )
+            elapsed = round(time.time() - t0, 2)
+            exit_code = proc.returncode
+            stderr_text = proc.stderr
     except subprocess.TimeoutExpired:
+        if live and mode == "fuzzer":
+            proc.kill()
+            proc.wait()
         elapsed = round(time.time() - t0, 2)
         return {
             "module": module,
@@ -223,6 +239,7 @@ def run_pipeline(
     trace: bool = False,
     input_file: Optional[str] = None,
     vcd_file: Optional[str] = None,
+    live: bool = False,
 ) -> dict:
     """Full pipeline: build → run → collect for one module."""
     print(f"[{module}] {'=' * 50}")
@@ -252,6 +269,7 @@ def run_pipeline(
         timeout_secs=timeout_secs,
         input_file=input_file,
         vcd_file=vcd_file,
+        live=live,
     )
 
     cov = result.get("coverage", {})
@@ -339,6 +357,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--report", type=Path,
                    default=SCRIPT_DIR.parent / "reports" / "emu_results.json",
                    help="JSON report output path")
+    p.add_argument("--live", action="store_true",
+                   help="Stream fuzzer stdout to terminal in real-time (colored output)")
     return p
 
 
@@ -365,6 +385,7 @@ def main():
                     skip_build=args.skip_build,
                     trace=args.trace,
                     input_file=args.input,
+                    live=args.live,
                 ): mod
                 for mod in modules
             }
@@ -387,6 +408,7 @@ def main():
                 trace=args.trace,
                 input_file=args.input,
                 vcd_file=args.vcd,
+                live=args.live,
             )
             results.append(result)
 
